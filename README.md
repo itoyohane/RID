@@ -1,77 +1,66 @@
 # RID
 
-RID is a Windows-first desktop app for creating **Bind Apps** modules around a main application.
+一次打开需要的应用，临时收起不需要的应用。
 
-Each module can:
+RID 是一款 Windows 桌面工具。你可以围绕一个“主应用”创建联动规则：
 
-- launch one main application;
-- launch zero or more companion applications;
-- temporarily close zero or more applications;
-- restore only the applications that RID successfully closed and that were running before the module started.
+- 打开主应用时，同时打开其他应用；
+- 打开主应用前，临时关闭容易干扰的应用；
+- 主应用退出后，只重新打开这一次由 RID 成功关闭的应用。
 
-## Architecture
+例如：
 
-```text
-Next.js static export
-  └─ lib/tauri.ts
-       ├─ Tauri invoke transport (desktop)
-       └─ deterministic mock transport (browser development/tests)
+- 打开游戏，同时启动语音工具，并临时关闭截图软件；
+- 打开 Obsidian，同时启动 Codex；
+- 打开工作软件时，一并启动常用的编辑器和文件夹。
 
-Tauri v2 / Rust
-  ├─ installed-application discovery
-  ├─ JSON binding persistence
-  ├─ process launch and graceful close
-  └─ main-process monitoring and selective restoration
-```
+## 使用方法
 
-Next.js is configured with `output: "export"` and emits static assets to `out/`, which Tauri serves as its frontend bundle.
+1. 点击侧栏中的“新增应用”。
+2. 选择主应用，再添加需要同时打开或临时关闭的应用。
+3. 点击“试运行”确认操作，保存后点击“运行 Bind Apps”。
 
-## Development
+RID 会自动搜索 Windows 中已安装的应用、桌面快捷方式和开始菜单快捷方式，并显示应用自身的图标。搜索支持应用名称、快捷方式名称和路径片段。
 
-Prerequisites:
+## 安全说明
 
-- Node.js 24+
-- Rust 1.85+
-- Windows WebView2 development environment for running the desktop shell
+- RID 默认请求应用正常退出，不会强制结束进程。
+- 只恢复启动前正在运行、并且由 RID 成功关闭的应用。
+- 浏览器预览只使用演示数据，不会打开或关闭电脑上的真实应用。
+- 部分仅驻留系统托盘或以管理员身份运行的应用，可能无法被普通权限的 RID 关闭。
 
-Install dependencies:
+## 当前版本
+
+RID 目前是 Windows MVP，支持：
+
+- 创建、编辑和删除 Bind Apps；
+- 搜索注册表、桌面及开始菜单中的本地应用；
+- 读取 `.lnk` 快捷方式的目标、启动参数和工作目录；
+- 自动读取本地应用图标；
+- 保存规则、试运行和正式运行；
+- 主应用退出后的选择性恢复。
+
+## 本地运行
+
+需要 Node.js、Rust 和 Windows WebView2 开发环境。
 
 ```powershell
 npm install
+npm run tauri:dev
 ```
 
-Run the browser development mode:
+生成 Windows 应用：
+
+```powershell
+npm run tauri:build
+```
+
+浏览器界面预览：
 
 ```powershell
 npm run dev
 ```
 
-Run the Tauri desktop application:
+> 浏览器受安全限制，只显示演示应用。检测本机应用请运行 Tauri 桌面版。
 
-```powershell
-npm run tauri:dev
-```
-
-## Validation
-
-```powershell
-npm run typecheck
-npm run lint
-npm run test
-npm run test:e2e
-npm run test:rust
-npm run build
-```
-
-## MVP safety behavior
-
-- RID requests normal application shutdown and does not force-kill by default.
-- System processes and protected executable paths are rejected.
-- An application is restored only when it was running before execution and RID successfully closed it.
-- Browser development uses mock data and never launches or closes local applications.
-
-## Project references
-
-- [RID MVP PRD](docs/RID/PRD_RID.md)
-- [Tauri Next.js frontend guide](https://v2.tauri.app/start/frontend/nextjs/)
-- [Next.js static export guide](https://nextjs.org/docs/app/guides/static-exports)
+产品说明见 [RID PRD](docs/RID/PRD_RID.md)，技术实现见 [架构说明](docs/architecture.md)。

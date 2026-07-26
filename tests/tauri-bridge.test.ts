@@ -37,7 +37,11 @@ describe("RID Tauri bridge", () => {
   it("浏览器环境可保存并重新读取 Bind Apps", async () => {
     const { ridBridge } = await import("@/lib/tauri");
     const draft: BindingDraft = {
-      mainApp: mockApps[1],
+      mainApp: {
+        ...mockApps[1],
+        launchArguments: "--vault work",
+        workingDirectory: "C:\\Apps\\Obsidian",
+      },
       openApps: [mockApps[2]],
       closeApps: [mockApps[4]],
     };
@@ -88,6 +92,9 @@ describe("RID Tauri bridge", () => {
         id: "native-app",
         name: "Native App",
         path: "C:\\Native.exe",
+        launch_arguments: "--profile work",
+        working_directory: "C:\\",
+        icon: "data:image/png;base64,aWNvbg==",
       },
     ]);
     const { ridBridge } = await import("@/lib/tauri");
@@ -97,8 +104,11 @@ describe("RID Tauri bridge", () => {
         id: "native-app",
         name: "Native App",
         path: "C:\\Native.exe",
+        launchArguments: "--profile work",
+        workingDirectory: "C:\\",
         aliases: [],
         iconKey: "app",
+        iconUrl: "data:image/png;base64,aWNvbg==",
       }),
     ]);
     expect(invoke).toHaveBeenCalledWith("list_installed_apps", undefined);
@@ -129,7 +139,11 @@ describe("RID Tauri bridge", () => {
     const { ridBridge } = await import("@/lib/tauri");
     const draft: BindingDraft = {
       id: "bind-obsidian",
-      mainApp: mockApps[1],
+      mainApp: {
+        ...mockApps[1],
+        launchArguments: "--vault work",
+        workingDirectory: "C:\\Apps\\Obsidian",
+      },
       openApps: [mockApps[2]],
       closeApps: [mockApps[4]],
     };
@@ -141,7 +155,11 @@ describe("RID Tauri bridge", () => {
       expect.objectContaining({
         binding: expect.objectContaining({
           id: "bind-obsidian",
-          main_app: expect.objectContaining({ id: "obsidian" }),
+          main_app: expect.objectContaining({
+            id: "obsidian",
+            launch_arguments: "--vault work",
+            working_directory: "C:\\Apps\\Obsidian",
+          }),
           open_apps: [expect.objectContaining({ id: "codex" })],
           close_apps: [expect.objectContaining({ id: "screenshot" })],
         }),

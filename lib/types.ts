@@ -13,6 +13,8 @@ export interface AppInfo {
   id: string;
   name: string;
   path: string;
+  launchArguments?: string;
+  workingDirectory?: string;
   aliases: string[];
   category?: string;
   iconKey?: AppIconKey;

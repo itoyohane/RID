@@ -50,8 +50,15 @@ pub fn is_running(app: &AppDescriptor) -> bool {
 pub fn spawn_application(app: &AppDescriptor) -> Result<Child, String> {
     let executable = PathBuf::from(&app.path);
     let mut command = Command::new(&executable);
-    if let Some(parent) = executable.parent() {
+    if let Some(working_directory) = app.working_directory.as_deref() {
+        command.current_dir(working_directory);
+    } else if let Some(parent) = executable.parent() {
         command.current_dir(parent);
+    }
+    #[cfg(windows)]
+    if let Some(arguments) = app.launch_arguments.as_deref() {
+        use std::os::windows::process::CommandExt;
+        command.raw_arg(arguments);
     }
     command
         .spawn()

@@ -6,6 +6,10 @@ pub struct AppDescriptor {
     pub name: String,
     pub path: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launch_arguments: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub working_directory: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
     #[serde(default)]
     pub category: String,

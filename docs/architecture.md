@@ -21,6 +21,17 @@ The frontend uses these Tauri commands:
 
 Tauri serializes Rust snake_case fields to the JSON shape consumed by the bridge.
 
+## Application discovery
+
+The Windows catalog merges registered `App Paths`, uninstall metadata, user/shared
+desktop shortcuts, and user/shared Start menu shortcuts. `.lnk` files are resolved
+through `IShellLinkW`, including their raw launch arguments and working directory.
+Results are deduplicated by executable path plus launch arguments and cached for the
+desktop session.
+
+Associated Windows icons are rendered to small PNG data URLs in Rust, so the webview
+can display local application icons without exposing a general filesystem protocol.
+
 ## Binding lifecycle
 
 1. Validate every executable path and reject protected/system targets.
