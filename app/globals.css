@@ -203,8 +203,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--blue-hover)
   background: #fff;
 }
 .app-icon img { width: 100%; height: 100%; display: block; object-fit: contain; }
-.app-icon img[src*="screenshot-tool"] { transform: scale(1.55); }
-.app-icon img[src*="obsidian"] { transform: scale(1.34); }
 .app-icon svg { width: 31px; height: 31px; }
 .app-icon--small { width: 48px; height: 48px; border-radius: 9px; }
 .app-icon--small svg { width: 27px; height: 27px; }

@@ -100,4 +100,4 @@ npm run dev
 
 > 浏览器受安全限制，只显示演示应用。检测本机应用请运行 Tauri 桌面版。
 
-产品说明见 [RID PRD](docs/RID/PRD_RID.md)，技术实现见 [架构说明](docs/architecture.md)。
+技术实现见 [架构说明](docs/architecture.md)。

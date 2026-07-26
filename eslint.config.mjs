@@ -9,7 +9,6 @@ export default defineConfig([
     ".next/**",
     "out/**",
     "src-tauri/target/**",
-    "lianqi-prototype/**",
     "next-env.d.ts",
   ]),
 ]);
