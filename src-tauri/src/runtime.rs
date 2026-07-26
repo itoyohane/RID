@@ -29,6 +29,10 @@ fn comparable_path(path: &Path) -> String {
 
 pub fn process_ids(app: &AppDescriptor) -> Vec<u32> {
     let system = System::new_all();
+    process_ids_in(&system, app)
+}
+
+fn process_ids_in(system: &System, app: &AppDescriptor) -> Vec<u32> {
     let expected_path = comparable_path(Path::new(&app.path));
     let expected_name = Path::new(&app.path)
         .file_name()
@@ -60,6 +64,7 @@ pub fn is_running(app: &AppDescriptor) -> bool {
 pub struct LaunchHandle {
     process: Option<OwnedHandle>,
     baseline_pids: HashSet<u32>,
+    root_pid: Option<u32>,
 }
 
 #[cfg(not(windows))]
@@ -88,10 +93,12 @@ pub fn spawn_application(app: &AppDescriptor) -> Result<LaunchHandle, String> {
     use windows::{
         core::PCWSTR,
         Win32::{
+            Foundation::HANDLE,
             System::Com::{
                 CoInitializeEx, CoUninitialize, COINIT, COINIT_APARTMENTTHREADED,
                 COINIT_DISABLE_OLE1DDE,
             },
+            System::Threading::GetProcessId,
             UI::{
                 Shell::{
                     ShellExecuteExW, SEE_MASK_NOASYNC, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW,
@@ -145,9 +152,14 @@ pub fn spawn_application(app: &AppDescriptor) -> Result<LaunchHandle, String> {
     } else {
         Some(unsafe { OwnedHandle::from_raw_handle(info.hProcess.0) })
     };
+    let root_pid = process
+        .as_ref()
+        .map(|handle| unsafe { GetProcessId(HANDLE(handle.as_raw_handle())) })
+        .filter(|pid| *pid != 0);
     Ok(LaunchHandle {
         process,
         baseline_pids,
+        root_pid,
     })
 }
 
@@ -279,33 +291,69 @@ fn process_handle_has_exited(handle: &OwnedHandle) -> bool {
     unsafe { WaitForSingleObject(HANDLE(handle.as_raw_handle()), 0) == WAIT_OBJECT_0 }
 }
 
+#[cfg(test)]
+const PROCESS_QUIESCENCE: Duration = Duration::from_millis(100);
+#[cfg(not(test))]
+const PROCESS_QUIESCENCE: Duration = Duration::from_secs(8);
+
+#[cfg(windows)]
+fn extend_process_family(system: &System, tracked_pids: &mut HashSet<u32>) {
+    loop {
+        let descendants = system
+            .processes()
+            .iter()
+            .filter_map(|(pid, process)| {
+                process
+                    .parent()
+                    .filter(|parent| tracked_pids.contains(&parent.as_u32()))
+                    .map(|_| pid.as_u32())
+            })
+            .collect::<Vec<_>>();
+        let original_len = tracked_pids.len();
+        tracked_pids.extend(descendants);
+        if tracked_pids.len() == original_len {
+            return;
+        }
+    }
+}
+
 pub fn wait_until_stopped(app: &AppDescriptor, launch: Option<LaunchHandle>) {
     #[cfg(windows)]
     if let Some(launch) = launch {
         let startup_deadline = Instant::now() + Duration::from_secs(10);
-        let mut target_observed = false;
-        let mut handle_exit_observed = None;
+        let mut tracked_pids = launch.root_pid.into_iter().collect::<HashSet<_>>();
+        let mut activity_observed = !tracked_pids.is_empty();
+        let mut quiet_since = None;
         loop {
-            let current = process_ids(app).into_iter().collect::<HashSet<_>>();
-            target_observed |= current
+            let system = System::new_all();
+            extend_process_family(&system, &mut tracked_pids);
+            let current = process_ids_in(&system, app)
+                .into_iter()
+                .collect::<HashSet<_>>();
+            let target_running = current
                 .iter()
                 .any(|pid| !launch.baseline_pids.contains(pid));
+            let family_running = tracked_pids
+                .iter()
+                .any(|pid| system.process(sysinfo::Pid::from_u32(*pid)).is_some());
             let handle_exited = launch
                 .process
                 .as_ref()
                 .map_or(true, process_handle_has_exited);
-            if handle_exited && handle_exit_observed.is_none() {
-                handle_exit_observed = Some(Instant::now());
-            }
+            let active = target_running || family_running || !handle_exited;
+            activity_observed |= active;
 
-            if target_observed {
-                if current.iter().all(|pid| launch.baseline_pids.contains(pid)) && handle_exited {
-                    return;
-                }
-            } else if handle_exit_observed
-                .is_some_and(|observed| observed.elapsed() >= Duration::from_secs(2))
-                || Instant::now() >= startup_deadline
+            if active {
+                quiet_since = None;
+            } else {
+                quiet_since.get_or_insert_with(Instant::now);
+            }
+            if activity_observed
+                && quiet_since.is_some_and(|quiet| quiet.elapsed() >= PROCESS_QUIESCENCE)
             {
+                return;
+            }
+            if !activity_observed && Instant::now() >= startup_deadline {
                 return;
             }
             thread::sleep(Duration::from_millis(250));
@@ -318,7 +366,16 @@ pub fn wait_until_stopped(app: &AppDescriptor, launch: Option<LaunchHandle>) {
         return;
     }
 
-    while is_running(app) {
+    let mut quiet_since = None;
+    loop {
+        if is_running(app) {
+            quiet_since = None;
+        } else {
+            quiet_since.get_or_insert_with(Instant::now);
+            if quiet_since.is_some_and(|quiet| quiet.elapsed() >= PROCESS_QUIESCENCE) {
+                return;
+            }
+        }
         thread::sleep(Duration::from_millis(750));
     }
 }
@@ -343,6 +400,32 @@ mod tests {
         };
         let launch = spawn_application(&app).unwrap();
         wait_until_stopped(&app, Some(launch));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn waits_for_a_launchers_descendant_processes() {
+        let directory = tempfile::tempdir().unwrap();
+        let command = std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".into());
+        let launcher = directory.path().join("rid-launcher-test.exe");
+        std::fs::copy(command, &launcher).unwrap();
+        let app = AppDescriptor {
+            id: "launcher-test".into(),
+            name: "RID launcher test".into(),
+            path: launcher.display().to_string(),
+            launch_arguments: Some(
+                r#"/d /c start "" /b cmd.exe /d /c "ping.exe -n 3 127.0.0.1 >nul""#.into(),
+            ),
+            working_directory: Some(directory.path().display().to_string()),
+            icon: None,
+            category: "test".into(),
+            aliases: Vec::new(),
+        };
+
+        let started = Instant::now();
+        let launch = spawn_application(&app).unwrap();
+        wait_until_stopped(&app, Some(launch));
+        assert!(started.elapsed() >= Duration::from_secs(1));
     }
 
     #[test]
