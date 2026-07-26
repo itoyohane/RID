@@ -8,6 +8,9 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 const commandsSource = read("src-tauri/src/commands.rs");
 const handlerSource = read("src-tauri/src/lib.rs");
 const modelsSource = read("src-tauri/src/models.rs");
+const platformSource = read("src-tauri/src/platform.rs");
+const shortcutSource = read("src-tauri/src/shortcut.rs");
+const iconSource = read("src-tauri/src/icon.rs");
 const bridgeSource = read("lib/tauri.ts");
 
 const commandNames = [
@@ -53,6 +56,16 @@ describe("Tauri 后端命令契约", () => {
     expect(modelsSource).toMatch(/pub struct Binding\s*\{[\s\S]*?\bmain_app:\s*AppDescriptor/);
     expect(modelsSource).toMatch(/pub struct Binding\s*\{[\s\S]*?\bopen_apps:\s*Vec<AppDescriptor>/);
     expect(modelsSource).toMatch(/pub struct Binding\s*\{[\s\S]*?\bclose_apps:\s*Vec<AppDescriptor>/);
+  });
+
+  it("应用 DTO 保留快捷方式参数、工作目录和本地图标", () => {
+    expect(modelsSource).toMatch(/\blaunch_arguments:\s*Option<String>/);
+    expect(modelsSource).toMatch(/\bworking_directory:\s*Option<String>/);
+    expect(shortcutSource).toContain("IShellLinkW");
+    expect(shortcutSource).toContain("Start Menu");
+    expect(shortcutSource).toContain("Desktop");
+    expect(platformSource).toContain("discover_shortcuts");
+    expect(iconSource).toContain("data:image/png;base64,");
   });
 
   it("执行报告公开恢复状态与 snake_case 枚举", () => {

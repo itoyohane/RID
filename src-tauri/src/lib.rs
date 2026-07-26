@@ -1,8 +1,12 @@
 mod commands;
+#[cfg(windows)]
+mod icon;
 mod models;
 mod persistence;
 mod platform;
 mod runtime;
+#[cfg(windows)]
+mod shortcut;
 mod validation;
 
 pub use models::{AppDescriptor, Binding, ExecutionOperation, ExecutionReport};

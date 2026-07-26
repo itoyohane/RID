@@ -6,6 +6,7 @@ import {
   FolderOpen,
   RocketLaunch,
 } from "@phosphor-icons/react";
+import Image from "next/image";
 import type { AppInfo } from "@/lib/types";
 
 const fallbackIcons = {
@@ -37,8 +38,11 @@ export function AppIcon({
 
   return (
     <span className={`app-icon app-icon--${size} app-icon--${tone}`}>
-      {app.iconUrl ? <img src={app.iconUrl} alt="" /> : <Icon weight="duotone" aria-hidden />}
+      {app.iconUrl ? (
+        <Image src={app.iconUrl} alt="" width={40} height={40} unoptimized />
+      ) : (
+        <Icon weight="duotone" aria-hidden />
+      )}
     </span>
   );
 }
-

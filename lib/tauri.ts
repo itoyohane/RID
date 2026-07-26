@@ -36,6 +36,8 @@ interface NativeApp {
   id: string;
   name: string;
   path: string;
+  launch_arguments?: string | null;
+  working_directory?: string | null;
   icon?: string | null;
   category?: string;
   aliases?: string[];
@@ -86,6 +88,8 @@ function normalizeApp(app: NativeApp): AppInfo {
     id: app.id,
     name: app.name,
     path: app.path,
+    launchArguments: app.launch_arguments ?? undefined,
+    workingDirectory: app.working_directory ?? undefined,
     aliases: app.aliases ?? [],
     category: app.category,
     ...inferred,
@@ -110,6 +114,8 @@ function toNativeApp(app: AppInfo): NativeApp {
     id: app.id,
     name: app.name,
     path: app.path,
+    launch_arguments: app.launchArguments,
+    working_directory: app.workingDirectory,
     aliases: app.aliases,
     category: app.category,
     icon: app.iconUrl?.startsWith("data:") ? app.iconUrl : undefined,

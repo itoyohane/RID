@@ -15,6 +15,8 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sysinfo = "0.33"
@@ -25,10 +27,13 @@ uuid = { version = "1", features = ["v4", "serde"] }
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [
   "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Com",
+  "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
 ] }
 winreg = "0.55"
 
 [dev-dependencies]
 tempfile = "3"
-

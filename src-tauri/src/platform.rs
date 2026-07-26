@@ -1,13 +1,19 @@
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
+    sync::OnceLock,
 };
 
-use crate::models::AppDescriptor;
+use crate::{icon, models::AppDescriptor, shortcut};
 
-fn stable_id(path: &str) -> String {
+fn stable_id(path: &str, launch_arguments: Option<&str>) -> String {
     let mut hash = 0xcbf29ce484222325_u64;
     for byte in path.to_ascii_lowercase().as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    hash = hash.wrapping_mul(0x100000001b3);
+    for byte in launch_arguments.unwrap_or_default().as_bytes() {
         hash ^= u64::from(*byte);
         hash = hash.wrapping_mul(0x100000001b3);
     }
@@ -19,6 +25,9 @@ fn descriptor(
     path: PathBuf,
     category: &str,
     aliases: Vec<String>,
+    launch_arguments: Option<String>,
+    working_directory: Option<PathBuf>,
+    icon_source: Option<(PathBuf, i32)>,
 ) -> Option<AppDescriptor> {
     if !path.is_file()
         || path
@@ -31,10 +40,15 @@ fn descriptor(
         return None;
     }
     let path = path.to_string_lossy().into_owned();
+    let icon = icon_source
+        .and_then(|(source, index)| icon::extract_icon_data_url(&source, index))
+        .or_else(|| icon::extract_icon_data_url(Path::new(&path), 0));
     Some(AppDescriptor {
-        id: stable_id(&path),
+        id: stable_id(&path, launch_arguments.as_deref()),
         name,
-        icon: Some(path.clone()),
+        launch_arguments,
+        working_directory: working_directory.map(|path| path.to_string_lossy().into_owned()),
+        icon,
         path,
         category: category.into(),
         aliases,
@@ -108,6 +122,33 @@ fn discover_windows_apps() -> Vec<AppDescriptor> {
     };
 
     let mut apps = BTreeMap::<String, AppDescriptor>::new();
+    for resolved in shortcut::discover_shortcuts() {
+        let identity = format!(
+            "{}\0{}",
+            resolved.target.to_string_lossy().to_ascii_lowercase(),
+            resolved.launch_arguments.as_deref().unwrap_or_default()
+        );
+        if apps.contains_key(&identity) {
+            continue;
+        }
+        let icon_source = resolved
+            .icon_source
+            .clone()
+            .map(|path| (path, resolved.icon_index));
+        if let Some(app) = descriptor(
+            resolved.name,
+            resolved.target,
+            "Shortcut",
+            resolved.aliases,
+            resolved.launch_arguments,
+            resolved.working_directory,
+            icon_source,
+        ) {
+            // Shortcut names are what users recognize on their desktop or Start menu,
+            // so they take priority over the registry's executable filename.
+            apps.entry(identity).or_insert(app);
+        }
+    }
     let roots = [
         RegKey::predef(HKEY_CURRENT_USER),
         RegKey::predef(HKEY_LOCAL_MACHINE),
@@ -130,6 +171,10 @@ fn discover_windows_apps() -> Vec<AppDescriptor> {
                     let Some(path) = clean_registry_path(&raw_path) else {
                         continue;
                     };
+                    let identity = format!("{}\0", path.to_string_lossy().to_ascii_lowercase());
+                    if apps.contains_key(&identity) {
+                        continue;
+                    }
                     let name = path
                         .file_stem()
                         .and_then(|value| value.to_str())
@@ -140,8 +185,11 @@ fn discover_windows_apps() -> Vec<AppDescriptor> {
                         path,
                         "Registered app",
                         vec![name.to_ascii_lowercase(), key_name],
+                        None,
+                        None,
+                        None,
                     ) {
-                        apps.entry(app.path.to_ascii_lowercase()).or_insert(app);
+                        apps.entry(identity).or_insert(app);
                     }
                 }
             }
@@ -174,12 +222,18 @@ fn discover_windows_apps() -> Vec<AppDescriptor> {
                     let Some(path) = path else {
                         continue;
                     };
+                    let identity = format!("{}\0", path.to_string_lossy().to_ascii_lowercase());
+                    if apps.contains_key(&identity) {
+                        continue;
+                    }
                     let mut aliases = vec![name.to_ascii_lowercase()];
                     if let Some(publisher) = publisher {
                         aliases.push(publisher);
                     }
-                    if let Some(app) = descriptor(name, path, "Installed app", aliases) {
-                        apps.entry(app.path.to_ascii_lowercase()).or_insert(app);
+                    if let Some(app) =
+                        descriptor(name, path, "Installed app", aliases, None, None, None)
+                    {
+                        apps.entry(identity).or_insert(app);
                     }
                 }
             }
@@ -198,7 +252,8 @@ fn discover_windows_apps() -> Vec<AppDescriptor> {
 pub fn list_installed_apps() -> Vec<AppDescriptor> {
     #[cfg(windows)]
     {
-        discover_windows_apps()
+        static APPLICATIONS: OnceLock<Vec<AppDescriptor>> = OnceLock::new();
+        APPLICATIONS.get_or_init(discover_windows_apps).clone()
     }
     #[cfg(not(windows))]
     {
@@ -212,10 +267,17 @@ mod tests {
 
     #[test]
     fn stable_ids_depend_on_normalized_path() {
-        assert_eq!(stable_id(r"C:\Apps\RID.exe"), stable_id(r"c:\apps\rid.exe"));
+        assert_eq!(
+            stable_id(r"C:\Apps\RID.exe", None),
+            stable_id(r"c:\apps\rid.exe", None)
+        );
         assert_ne!(
-            stable_id(r"C:\Apps\RID.exe"),
-            stable_id(r"C:\Apps\Other.exe")
+            stable_id(r"C:\Apps\RID.exe", None),
+            stable_id(r"C:\Apps\Other.exe", None)
+        );
+        assert_ne!(
+            stable_id(r"c:\apps\rid.exe", Some("--profile work")),
+            stable_id(r"c:\apps\rid.exe", Some("--profile personal"))
         );
     }
 }

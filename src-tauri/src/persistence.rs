@@ -66,6 +66,8 @@ mod tests {
             id: id.into(),
             name: id.into(),
             path: path.display().to_string(),
+            launch_arguments: None,
+            working_directory: None,
             icon: None,
             category: "test".into(),
             aliases: Vec::new(),
