@@ -27,7 +27,40 @@ fn comparable_path(path: &Path) -> String {
         .to_ascii_lowercase()
 }
 
+fn steam_app_id(app: &AppDescriptor) -> Option<u32> {
+    let executable = Path::new(&app.path)
+        .file_name()?
+        .to_string_lossy()
+        .to_ascii_lowercase();
+    if executable != "steam.exe" {
+        return None;
+    }
+    let arguments = app.launch_arguments.as_deref()?;
+    let mut parts = arguments.split_whitespace();
+    while let Some(part) = parts.next() {
+        if part.eq_ignore_ascii_case("-applaunch") {
+            return parts.next()?.trim_matches('"').parse().ok();
+        }
+    }
+    None
+}
+
+#[cfg(windows)]
+fn steam_app_running(app_id: u32) -> Option<bool> {
+    use winreg::{enums::HKEY_CURRENT_USER, RegKey};
+
+    RegKey::predef(HKEY_CURRENT_USER)
+        .open_subkey(format!(r"Software\Valve\Steam\Apps\{app_id}"))
+        .ok()?
+        .get_value::<u32, _>("Running")
+        .ok()
+        .map(|running| running != 0)
+}
+
 pub fn process_ids(app: &AppDescriptor) -> Vec<u32> {
+    if steam_app_id(app).is_some() {
+        return Vec::new();
+    }
     let system = System::new_all();
     process_ids_in(&system, app)
 }
@@ -57,6 +90,10 @@ fn process_ids_in(system: &System, app: &AppDescriptor) -> Vec<u32> {
 }
 
 pub fn is_running(app: &AppDescriptor) -> bool {
+    #[cfg(windows)]
+    if let Some(app_id) = steam_app_id(app) {
+        return steam_app_running(app_id).unwrap_or(false);
+    }
     !process_ids(app).is_empty()
 }
 
@@ -317,7 +354,39 @@ fn extend_process_family(system: &System, tracked_pids: &mut HashSet<u32>) {
     }
 }
 
+#[cfg(windows)]
+fn wait_until_steam_app_stopped(app_id: u32) -> bool {
+    if steam_app_running(app_id).is_none() {
+        return false;
+    }
+
+    let startup_deadline = Instant::now() + Duration::from_secs(60);
+    let mut running_observed = false;
+    let mut quiet_since = None;
+    loop {
+        if steam_app_running(app_id).unwrap_or(false) {
+            running_observed = true;
+            quiet_since = None;
+        } else if running_observed {
+            quiet_since.get_or_insert_with(Instant::now);
+            if quiet_since.is_some_and(|quiet| quiet.elapsed() >= PROCESS_QUIESCENCE) {
+                return true;
+            }
+        } else if Instant::now() >= startup_deadline {
+            return true;
+        }
+        thread::sleep(Duration::from_millis(500));
+    }
+}
+
 pub fn wait_until_stopped(app: &AppDescriptor, launch: Option<LaunchHandle>) {
+    #[cfg(windows)]
+    if let Some(app_id) = steam_app_id(app) {
+        if wait_until_steam_app_stopped(app_id) {
+            return;
+        }
+    }
+
     #[cfg(windows)]
     if let Some(launch) = launch {
         let startup_deadline = Instant::now() + Duration::from_secs(10);
@@ -383,6 +452,21 @@ pub fn wait_until_stopped(app: &AppDescriptor, launch: Option<LaunchHandle>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_steam_app_launch_arguments() {
+        let app = AppDescriptor {
+            id: "steam-730".into(),
+            name: "Counter-Strike 2".into(),
+            path: r"C:\Program Files (x86)\Steam\steam.exe".into(),
+            launch_arguments: Some("-silent -applaunch 730".into()),
+            working_directory: None,
+            icon: None,
+            category: "Steam".into(),
+            aliases: Vec::new(),
+        };
+        assert_eq!(steam_app_id(&app), Some(730));
+    }
 
     #[cfg(windows)]
     #[test]

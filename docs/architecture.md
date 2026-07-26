@@ -27,6 +27,9 @@ Tauri serializes Rust snake_case fields to the JSON shape consumed by the bridge
 The Windows catalog merges registered `App Paths`, uninstall metadata, user/shared
 desktop shortcuts, and user/shared Start menu shortcuts. `.lnk` files are resolved
 through `IShellLinkW`, including their raw launch arguments and working directory.
+Steam `.url` shortcuts using `steam://rungameid/<app-id>` or `steam://run/<app-id>`
+are converted to the installed `steam.exe -applaunch <app-id>` command while
+preserving the shortcut-provided icon.
 Results are deduplicated by executable path plus launch arguments and cached for the
 desktop session.
 
@@ -53,6 +56,11 @@ crisp local application icons without exposing a general filesystem protocol.
    not trigger premature recovery.
 9. When the main application exits, relaunch only the applications recorded in step 5.
 
+For Steam bindings, process-name matching would confuse the persistent Steam client
+with the selected game. RID instead reads the per-App-ID `Running` value maintained by
+Steam under the current user's registry hive, waits for it to become active, and then
+requires the normal quiet period after it returns to inactive.
+
 The MVP never force-kills a process by default.
 
 Every launch report is persisted under the application data `logs` directory. Main
@@ -71,11 +79,10 @@ target executable, and icon without asking for a directory again.
 
 The Tauri window is initially hidden. A normal launch shows and focuses the window.
 A shortcut launch keeps it hidden, loads the saved binding by ID, runs the binding
-lifecycle on a worker thread, and shows/focuses the RID window after recovery
-completes instead of terminating RID with the main application. RID assigns an
-explicit Windows AppUserModelID and reapplies its bundled window icon before showing
-the window, so a main-application-styled launcher shortcut cannot replace RID's
-taskbar identity. Startup failures are shown with a native error dialog.
+lifecycle on a worker thread, and exits the hidden runner after recovery completes.
+It never reveals a second RID window when the main application closes. RID assigns an
+explicit Windows AppUserModelID and applies its bundled window icon for normal
+interactive launches. Startup failures are shown with a native error dialog.
 
 ## Persistence
 
