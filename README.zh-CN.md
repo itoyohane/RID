@@ -22,12 +22,12 @@ RID 是一款 Windows 桌面工具。你可以围绕一个“主应用”创建�
 
 RID 当前支持 64 位 Windows 10 和 Windows 11。
 
-1. 直接下载最新的 [RID Windows 安装程序](https://github.com/itoyohane/RID/releases/latest/download/RID_0.1.0_x64-setup.exe)，或打开 [GitHub Releases](https://github.com/itoyohane/RID/releases) 查看全部附件。
-2. 普通用户请选择 `RID_0.1.0_x64-setup.exe`。
+1. 直接下载最新的 [RID Windows 安装程序](https://github.com/itoyohane/RID/releases/latest/download/RID_0.1.1_x64-setup.exe)，或打开 [GitHub Releases](https://github.com/itoyohane/RID/releases) 查看全部附件。
+2. 普通用户请选择 `RID_0.1.1_x64-setup.exe`。
 3. 双击安装程序，按照提示完成安装。
 4. 安装完成后，从 Windows 开始菜单搜索并打开 **RID**。
 
-如果你需要 MSI，可以下载 `RID_0.1.0_x64_en-US.msi`，它更适合企业部署或统一安装。
+如果你需要 MSI，可以下载 `RID_0.1.1_x64_en-US.msi`，它更适合企业部署或统一安装。
 
 > RID 目前尚未签名。Windows SmartScreen 可能显示“Windows 已保护你的电脑”。请确认安装包来自本仓库的 Releases 页面，再点击“更多信息”→“仍要运行”。
 

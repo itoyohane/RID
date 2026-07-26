@@ -18,12 +18,12 @@ For example, RID can start a voice chat tool and close screenshot software with 
 
 RID supports 64-bit Windows 10 and Windows 11.
 
-1. Download the latest [RID Windows installer](https://github.com/itoyohane/RID/releases/latest/download/RID_0.1.0_x64-setup.exe), or browse all files on [GitHub Releases](https://github.com/itoyohane/RID/releases).
-2. For most users, choose `RID_0.1.0_x64-setup.exe`.
+1. Download the latest [RID Windows installer](https://github.com/itoyohane/RID/releases/latest/download/RID_0.1.1_x64-setup.exe), or browse all files on [GitHub Releases](https://github.com/itoyohane/RID/releases).
+2. For most users, choose `RID_0.1.1_x64-setup.exe`.
 3. Run the installer and follow the setup steps.
 4. Open **RID** from the Windows Start menu.
 
-The `RID_0.1.0_x64_en-US.msi` package is also available for managed or enterprise deployment.
+The `RID_0.1.1_x64_en-US.msi` package is also available for managed or enterprise deployment.
 
 > RID is currently unsigned. Windows SmartScreen may show a warning. Verify that the installer came from this repository, then choose **More info → Run anyway**.
 

@@ -1,6 +1,6 @@
 {
   "name": "rid",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Create Windows shortcuts that launch companion apps, temporarily close distractions, and restore only what RID closed.",
   "scripts": {
