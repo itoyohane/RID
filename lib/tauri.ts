@@ -32,6 +32,11 @@ async function tauriInvoke<T>(command: string, args?: Record<string, unknown>): 
   return invoke<T>(command, args);
 }
 
+function mockShortcutPath(directory: string, name: string) {
+  const safeName = name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, " ").trim() || "Bind Apps";
+  return `${directory.replace(/[\\/]+$/, "")}\\${safeName} · RID.lnk`;
+}
+
 interface NativeApp {
   id: string;
   name: string;
@@ -229,6 +234,27 @@ export const ridBridge = {
       return;
     }
     writeMockBindings(readMockBindings().filter((binding) => binding.id !== id));
+  },
+
+  async selectShortcutDirectory(): Promise<string | null> {
+    if (!isTauriRuntime()) return "C:\\Users\\Demo\\Desktop";
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: "选择快捷方式保存位置",
+    });
+    return typeof selected === "string" ? selected : null;
+  },
+
+  async createBindingShortcut(binding: Binding, directory: string): Promise<string> {
+    if (isTauriRuntime()) {
+      return tauriInvoke<string>("create_binding_shortcut", {
+        id: binding.id,
+        directory,
+      });
+    }
+    return mockShortcutPath(directory, binding.mainApp.name);
   },
 
   async runBinding(binding: BindingDraft): Promise<RunResult> {

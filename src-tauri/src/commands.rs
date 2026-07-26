@@ -9,6 +9,8 @@ use chrono::Utc;
 use tauri::{AppHandle, Emitter, Manager, State};
 use uuid::Uuid;
 
+#[cfg(windows)]
+use crate::shortcut;
 use crate::{
     models::{
         AppDescriptor, Binding, ExecutionMode, ExecutionOperation, ExecutionReport,
@@ -117,6 +119,35 @@ pub fn delete_binding(
 }
 
 #[tauri::command]
+pub fn create_binding_shortcut(
+    app: AppHandle,
+    state: State<'_, StorageState>,
+    id: String,
+    directory: String,
+) -> Result<String, String> {
+    let binding = resolve_binding(&app, &state, Some(id), None)?;
+    validation::validate_binding(&binding)?;
+    #[cfg(windows)]
+    {
+        let executable =
+            std::env::current_exe().map_err(|error| format!("无法定位 RID：{error}"))?;
+        let path = shortcut::create_binding_shortcut(
+            &PathBuf::from(directory),
+            binding.name.as_deref().unwrap_or(&binding.main_app.name),
+            &binding.id,
+            &executable,
+            &PathBuf::from(&binding.main_app.path),
+        )?;
+        Ok(path.to_string_lossy().into_owned())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = directory;
+        Err("创建快捷方式当前仅支持 Windows".into())
+    }
+}
+
+#[tauri::command]
 pub fn dry_run_binding(
     app: AppHandle,
     state: State<'_, StorageState>,
@@ -183,6 +214,24 @@ pub fn launch_binding(
     binding: Option<Binding>,
 ) -> Result<ExecutionReport, String> {
     let binding = resolve_binding(&app, &state, id, binding)?;
+    execute_binding(app, binding, false)
+}
+
+pub fn run_saved_binding(
+    app: AppHandle,
+    id: String,
+    exit_when_done: bool,
+) -> Result<ExecutionReport, String> {
+    let state = app.state::<StorageState>();
+    let binding = resolve_binding(&app, &state, Some(id), None)?;
+    execute_binding(app, binding, exit_when_done)
+}
+
+fn execute_binding(
+    app: AppHandle,
+    binding: Binding,
+    exit_when_done: bool,
+) -> Result<ExecutionReport, String> {
     validation::validate_binding(&binding)?;
     let mut report = new_report(&binding, ExecutionMode::Launch);
     let mut restore_apps = Vec::<AppDescriptor>::new();
@@ -293,6 +342,9 @@ pub fn launch_binding(
                 message,
             ));
         }
+        if exit_when_done {
+            app.exit(1);
+        }
         return Ok(report);
     }
 
@@ -327,6 +379,9 @@ pub fn launch_binding(
         }
         completed_report.recovery_pending = false;
         let _ = background_app.emit("execution-complete", &completed_report);
+        if exit_when_done {
+            background_app.exit(0);
+        }
     });
 
     Ok(report)

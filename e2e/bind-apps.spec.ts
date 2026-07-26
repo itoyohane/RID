@@ -67,7 +67,12 @@ test("在浏览器 mock 中完成 Bind Apps 新增、试运行与保存", async 
   await page.getByRole("button", { name: "保存 Bind Apps" }).click();
   const savedDialog = page.getByRole("dialog", { name: "Bind Apps 已保存" });
   await expect(savedDialog).toContainText("Visual Studio Code");
-  await savedDialog.getByRole("button", { name: "好的" }).click();
+  await savedDialog.getByRole("button", { name: "选择位置并创建" }).click();
+  const shortcutDialog = page.getByRole("dialog", { name: "快捷方式已创建" });
+  await expect(shortcutDialog).toContainText(
+    "C:\\Users\\Demo\\Desktop\\Visual Studio Code · RID.lnk",
+  );
+  await shortcutDialog.getByRole("button", { name: "完成" }).click();
 
   const navigation = page.getByRole("complementary", { name: "RID 导航" });
   await expect(

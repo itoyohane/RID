@@ -12,6 +12,8 @@ const bridge = vi.hoisted(() => ({
   listBindings: vi.fn(),
   saveBinding: vi.fn(),
   deleteBinding: vi.fn(),
+  selectShortcutDirectory: vi.fn(),
+  createBindingShortcut: vi.fn(),
   runBinding: vi.fn(),
   launchBinding: vi.fn(),
 }));
@@ -42,6 +44,10 @@ describe("RID 新增选项页", () => {
     bridge.listApps.mockResolvedValue(mockApps);
     bridge.listBindings.mockResolvedValue([]);
     bridge.deleteBinding.mockResolvedValue(undefined);
+    bridge.selectShortcutDirectory.mockResolvedValue("C:\\Users\\Demo\\Desktop");
+    bridge.createBindingShortcut.mockResolvedValue(
+      "C:\\Users\\Demo\\Desktop\\Obsidian · RID.lnk",
+    );
     bridge.runBinding.mockResolvedValue({
       success: true,
       message: "试运行完成",
@@ -137,6 +143,32 @@ describe("RID 新增选项页", () => {
     expect(await screen.findByRole("dialog", { name: "Bind Apps 已保存" })).toBeInTheDocument();
     const navigation = screen.getByRole("complementary", { name: "RID 导航" });
     expect(within(navigation).getByRole("button", { name: "Obsidian" })).toBeInTheDocument();
+  });
+
+  it("保存后可选择位置并创建启动快捷方式", async () => {
+    const user = userEvent.setup();
+    render(<RidApp />);
+    await screen.findByText("选择主应用");
+
+    await chooseApp(
+      section("主应用").getByRole("button", { name: "选择应用" }),
+      "obs",
+      "Obsidian",
+    );
+    await user.click(screen.getByRole("button", { name: "保存 Bind Apps" }));
+    const dialog = await screen.findByRole("dialog", { name: "Bind Apps 已保存" });
+    await user.click(within(dialog).getByRole("button", { name: "选择位置并创建" }));
+
+    await waitFor(() => {
+      expect(bridge.selectShortcutDirectory).toHaveBeenCalledTimes(1);
+      expect(bridge.createBindingShortcut).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "bind-obsidian" }),
+        "C:\\Users\\Demo\\Desktop",
+      );
+    });
+    expect(
+      await screen.findByRole("dialog", { name: "快捷方式已创建" }),
+    ).toHaveTextContent("C:\\Users\\Demo\\Desktop\\Obsidian · RID.lnk");
   });
 
   it("试运行通过 bridge 返回明确结果", async () => {
