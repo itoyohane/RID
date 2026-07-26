@@ -33,6 +33,6 @@
       "icons/icon.ico"
     ],
     "category": "Utility",
-    "shortDescription": "Bind apps to a main Windows application."
+    "shortDescription": "Launch, close, and restore Windows apps with smart shortcuts."
   }
 }

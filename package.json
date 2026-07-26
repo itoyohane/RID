@@ -2,7 +2,7 @@
   "name": "rid",
   "version": "0.1.0",
   "private": true,
-  "description": "RID - bind apps to a Windows main application.",
+  "description": "Create Windows shortcuts that launch companion apps, temporarily close distractions, and restore only what RID closed.",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",

@@ -1,103 +1,111 @@
 # RID
 
-一次打开需要的应用，临时收起不需要的应用。
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-RID 是一款 Windows 桌面工具。你可以围绕一个“主应用”创建联动规则：
+RID coordinates Windows apps through smart shortcuts: launch companion apps, temporarily close distractions, and restore only what RID closed.
 
-- 打开主应用时，同时打开其他应用；
-- 打开主应用前，临时关闭容易干扰的应用；
-- 主应用退出后，只重新打开这一次由 RID 成功关闭的应用。
+Create a binding around any main application:
 
-例如：
+- open other apps alongside it;
+- temporarily close selected apps before it starts;
+- restore only the apps RID successfully closed when the main app exits.
 
-- 打开游戏，同时启动语音工具，并临时关闭截图软件；
-- 打开 Obsidian，同时启动 Codex；
-- 打开工作软件时，一并启动常用的编辑器和文件夹。
+For example, RID can start a voice chat tool and close screenshot software with a game, or open Codex whenever you launch Obsidian.
 
-![RID 新增选项页面](docs/assets/rid-overview.png)
+![RID new binding screen](docs/assets/rid-overview.png)
 
-## 下载与安装
+## Download
 
-RID 当前支持 64 位 Windows 10 和 Windows 11。
+RID supports 64-bit Windows 10 and Windows 11.
 
-1. 直接下载最新的 [RID Windows 安装程序](https://github.com/itoyohane/RID/releases/latest/download/RID_0.1.0_x64-setup.exe)，或打开 [GitHub Releases](https://github.com/itoyohane/RID/releases) 查看全部附件。
-2. 普通用户请选择 `RID_0.1.0_x64-setup.exe`。
-3. 双击安装程序，按照提示完成安装。
-4. 安装完成后，从 Windows 开始菜单搜索并打开 **RID**。
+1. Download the latest [RID Windows installer](https://github.com/itoyohane/RID/releases/latest/download/RID_0.1.0_x64-setup.exe), or browse all files on [GitHub Releases](https://github.com/itoyohane/RID/releases).
+2. For most users, choose `RID_0.1.0_x64-setup.exe`.
+3. Run the installer and follow the setup steps.
+4. Open **RID** from the Windows Start menu.
 
-如果你需要 MSI，可以下载 `RID_版本号_x64_en-US.msi`，它更适合企业部署或统一安装。
+The `RID_0.1.0_x64_en-US.msi` package is also available for managed or enterprise deployment.
 
-> RID 目前是未签名的 MVP。Windows SmartScreen 可能显示“Windows 已保护你的电脑”。请确认安装包来自本仓库的 Releases 页面，再点击“更多信息”→“仍要运行”。
+> RID is currently unsigned. Windows SmartScreen may show a warning. Verify that the installer came from this repository, then choose **More info → Run anyway**.
 
-卸载 RID：打开 Windows“设置”→“应用”→“已安装的应用”，找到 **RID** 并选择卸载。
+To uninstall RID, open **Windows Settings → Apps → Installed apps**, find **RID**, and select **Uninstall**.
 
-## 使用方法
+## Usage
 
-1. 点击侧栏中的“新增应用”。
-2. 选择主应用，再添加需要同时打开或临时关闭的应用。
-3. 对无法正常退出的托盘应用，可在该应用的“更多操作”中选择“关闭失败时强制结束”。此选项可能导致未保存内容丢失，默认关闭。
-4. 点击“试运行”确认操作，然后保存 Bind Apps。
-5. 在保存成功窗口中点击“选择位置并创建”，选择桌面或其他文件夹。
-6. 以后直接双击生成的“主应用名 · RID”快捷方式即可。RID 会在后台执行关闭、打开和恢复流程；主应用退出并完成恢复后，后台执行器会自动退出，不会再弹出 RID 窗口。
+1. Click **New App (新增应用)** in the sidebar.
+2. Select a main app, then add apps to open or temporarily close.
+3. For tray apps that cannot exit normally, enable **Force close if graceful close fails (关闭失败时强制结束)** from that app's menu. This option is off by default and may discard unsaved work.
+4. Use **Dry Run (试运行)** to review the actions, then save the binding.
+5. Choose a folder when RID asks where to create the shortcut.
+6. Launch the generated `Main App · RID` shortcut from then on.
 
-第一次使用时，也可以点击 RID 窗口右上角的指南图标查看三步操作说明。
+RID runs the close, launch, monitor, and restore workflow in the background. The hidden runner exits after the main app closes and recovery finishes.
 
-快捷方式保存的是 Bind Apps 的 ID，而不是一份独立配置。创建快捷方式后，RID 会记住它的位置；之后修改同一个模块并点击“保存更改”，RID 会直接覆盖更新原快捷方式，不再要求重复选择位置。如果原快捷方式已被移动、重命名或删除，配置仍会正常保存，RID 会提示你重新选择快捷方式位置。
+A shortcut stores the binding ID rather than a separate copy of its configuration. Editing a binding updates its existing shortcut in place. If the shortcut was moved, renamed, or deleted, the binding still saves and RID asks for a new location.
 
-RID 会自动搜索 Windows 中已安装的应用、桌面快捷方式和开始菜单快捷方式，并优先提取应用文件中的 Windows 原生高分辨率图标。Steam 创建的 `.url` 游戏快捷方式也可直接搜索和绑定。搜索支持应用名称、快捷方式名称和路径片段。
+RID discovers applications from Windows registration data, desktop shortcuts, and Start menu shortcuts. It extracts native Windows icons where possible and supports Steam `.url` game shortcuts.
 
-## 安全说明
+## Safety
 
-- RID 默认请求应用正常退出，不会强制结束进程。
-- 强制结束必须针对单个应用手动开启；它可能造成该应用未保存内容丢失。
-- 只恢复启动前正在运行、并且由 RID 成功关闭的应用。
-- RID 会跟踪主应用启动器产生的后续进程，并在进程稳定退出后再恢复应用，避免更新器或自重启造成过早恢复。
-- 需要管理员权限的主应用会由 Windows 显示 UAC；拒绝授权或启动失败时，RID 会恢复已关闭应用并显示原因。
-- 执行记录保存在 `%APPDATA%\com.rid.desktop\logs\`，便于排查快捷方式运行失败。
-- 浏览器预览只使用演示数据，不会打开或关闭电脑上的真实应用。
-- 部分仅驻留系统托盘或以管理员身份运行的应用，可能无法被普通权限的 RID 关闭。
+- RID requests a normal application exit by default.
+- Force close must be enabled separately for each app and can discard unsaved work.
+- RID restores only apps that were running beforehand and that RID successfully closed.
+- Launcher child processes are tracked so updaters and self-restarting apps do not trigger recovery too early.
+- Windows handles UAC prompts for elevated applications. If elevation is declined or launch fails, RID restores closed apps and reports the cause.
+- Execution logs are stored in `%APPDATA%\com.rid.desktop\logs\`.
+- The browser preview uses demo data and cannot control local applications.
+- Apps running only in the system tray or with elevated permissions may not close from a normal RID process.
 
-## 当前版本
+## Current features
 
-RID 目前是 Windows MVP，支持：
+- Create, edit, and delete app bindings.
+- Search registered applications and desktop or Start menu shortcuts.
+- Read `.lnk` targets, arguments, and working directories.
+- Discover and launch Steam game shortcuts.
+- Extract native application icons.
+- Run a dry run before executing a binding.
+- Create a launcher shortcut in a user-selected folder.
+- Execute bindings in a hidden background runner.
+- Support UAC-aware launches and per-app force-close fallback.
+- Restore only applications RID closed.
 
-- 创建、编辑和删除 Bind Apps；
-- 搜索注册表、桌面及开始菜单中的本地应用；
-- 读取 `.lnk` 快捷方式的目标、启动参数和工作目录；
-- 自动读取本地应用图标；
-- 保存规则、试运行和正式运行；
-- 在用户指定目录生成带主应用图标的启动快捷方式；
-- 从快捷方式后台执行 Bind Apps，无需显示 RID 主窗口；
-- 兼容需要 UAC 授权的应用，并显示后台执行错误；
-- 为托盘应用提供默认安全、按应用显式启用的强制结束兜底；
-- 主应用退出后的选择性恢复。
+## Development
 
-## 开发者运行
+Requirements:
 
-需要 Node.js、Rust 和 Windows WebView2 开发环境。
+- Node.js
+- Rust
+- Windows WebView2 development environment
+
+Run the desktop app:
 
 ```powershell
 npm install
 npm run tauri:dev
 ```
 
-生成 Windows 安装包：
+Run checks:
+
+```powershell
+npm run check
+```
+
+Build Windows installers:
 
 ```powershell
 npm run tauri:build
 ```
 
-构建完成后可以在以下目录找到：
+Build outputs:
 
-- `src-tauri/target/release/bundle/nsis/`：推荐给普通用户的 `.exe` 安装程序；
-- `src-tauri/target/release/bundle/msi/`：用于企业部署的 `.msi` 安装包。
+- `src-tauri/target/release/bundle/nsis/` — recommended `.exe` installer;
+- `src-tauri/target/release/bundle/msi/` — MSI package.
 
-浏览器界面预览：
+Run the browser-only UI preview:
 
 ```powershell
 npm run dev
 ```
 
-> 浏览器受安全限制，只显示演示应用。检测本机应用请运行 Tauri 桌面版。
+The browser preview cannot discover or control applications. Run the Tauri desktop app for native Windows behavior.
 
-技术实现见 [架构说明](docs/architecture.md)。
+See [Architecture](docs/architecture.md) for implementation details.
