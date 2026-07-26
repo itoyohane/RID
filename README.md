@@ -20,14 +20,14 @@ RID 是一款 Windows 桌面工具。你可以围绕一个“主应用”创建�
 
 RID 当前支持 64 位 Windows 10 和 Windows 11。
 
-1. 打开 [GitHub Releases](https://github.com/itoyohane/RID/releases)。
-2. 进入最新版本，下载 `RID_版本号_x64-setup.exe`。这是推荐给普通用户的安装程序。
+1. 直接下载最新的 [RID Windows 安装程序](https://github.com/itoyohane/RID/releases/latest/download/RID_0.1.0_x64-setup.exe)，或打开 [GitHub Releases](https://github.com/itoyohane/RID/releases) 查看全部附件。
+2. 普通用户请选择 `RID_0.1.0_x64-setup.exe`。
 3. 双击安装程序，按照提示完成安装。
 4. 安装完成后，从 Windows 开始菜单搜索并打开 **RID**。
 
 如果你需要 MSI，可以下载 `RID_版本号_x64_en-US.msi`，它更适合企业部署或统一安装。
 
-> RID 目前是未签名的 MVP。Windows SmartScreen 可能显示“Windows 已保护你的电脑”。请确认安装包来自本仓库的 Releases 页面，再点击“更多信息”→“仍要运行”。如果 Releases 页面暂时没有安装包，请向项目维护者获取，不要从未知来源下载。
+> RID 目前是未签名的 MVP。Windows SmartScreen 可能显示“Windows 已保护你的电脑”。请确认安装包来自本仓库的 Releases 页面，再点击“更多信息”→“仍要运行”。
 
 卸载 RID：打开 Windows“设置”→“应用”→“已安装的应用”，找到 **RID** 并选择卸载。
 
@@ -42,7 +42,7 @@ RID 当前支持 64 位 Windows 10 和 Windows 11。
 
 第一次使用时，也可以点击 RID 窗口右上角的指南图标查看三步操作说明。
 
-快捷方式保存的是 Bind Apps 的 ID，而不是一份独立配置。创建快捷方式后，RID 会记住它的位置；之后修改同一个模块并点击“保存更改”，RID 会直接覆盖更新原快捷方式，不再要求重复选择位置。
+快捷方式保存的是 Bind Apps 的 ID，而不是一份独立配置。创建快捷方式后，RID 会记住它的位置；之后修改同一个模块并点击“保存更改”，RID 会直接覆盖更新原快捷方式，不再要求重复选择位置。如果原快捷方式已被移动、重命名或删除，配置仍会正常保存，RID 会提示你重新选择快捷方式位置。
 
 RID 会自动搜索 Windows 中已安装的应用、桌面快捷方式和开始菜单快捷方式，并优先提取应用文件中的 Windows 原生高分辨率图标。Steam 创建的 `.url` 游戏快捷方式也可直接搜索和绑定。搜索支持应用名称、快捷方式名称和路径片段。
 

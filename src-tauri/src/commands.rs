@@ -94,6 +94,36 @@ pub fn list_bindings(
     persistence::load_bindings(&app_data_dir(&app)?)
 }
 
+#[cfg(windows)]
+fn refresh_binding_shortcut(binding: &mut Binding, executable: &PathBuf) {
+    let shortcut_path = binding
+        .shortcut_path
+        .as_deref()
+        .map(PathBuf::from)
+        .filter(|path| path.is_file())
+        .or_else(|| shortcut::find_binding_shortcut(&binding.id, executable));
+
+    binding.shortcut_path =
+        shortcut_path.and_then(|path| {
+            match shortcut::replace_binding_shortcut(
+                &path,
+                binding.name.as_deref().unwrap_or(&binding.main_app.name),
+                &binding.id,
+                executable,
+                &PathBuf::from(&binding.main_app.path),
+            ) {
+                Ok(updated_path) => Some(updated_path.to_string_lossy().into_owned()),
+                Err(error) => {
+                    eprintln!(
+                        "RID could not refresh shortcut for binding {}: {error}",
+                        binding.id
+                    );
+                    None
+                }
+            }
+        });
+}
+
 #[tauri::command]
 pub fn save_binding(
     app: AppHandle,
@@ -116,19 +146,7 @@ pub fn save_binding(
     {
         let executable =
             std::env::current_exe().map_err(|error| format!("无法定位 RID：{error}"))?;
-        if binding.shortcut_path.is_none() {
-            binding.shortcut_path = shortcut::find_binding_shortcut(&binding.id, &executable)
-                .map(|path| path.to_string_lossy().into_owned());
-        }
-        if let Some(path) = binding.shortcut_path.as_deref() {
-            shortcut::replace_binding_shortcut(
-                &PathBuf::from(path),
-                binding.name.as_deref().unwrap_or(&binding.main_app.name),
-                &binding.id,
-                &executable,
-                &PathBuf::from(&binding.main_app.path),
-            )?;
-        }
+        refresh_binding_shortcut(&mut binding, &executable);
     }
     persistence::upsert_binding(&data_directory, binding)
 }
@@ -449,4 +467,42 @@ fn execute_binding(
     });
 
     Ok(report)
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shortcut_refresh_failure_clears_the_stale_path() {
+        let directory = tempfile::tempdir().unwrap();
+        let invalid_shortcut = directory.path().join("stale-shortcut.txt");
+        std::fs::write(&invalid_shortcut, b"not a Windows shortcut").unwrap();
+        let executable = std::env::current_exe().unwrap();
+        let main_app = AppDescriptor {
+            id: "main".into(),
+            name: "Main".into(),
+            path: executable.to_string_lossy().into_owned(),
+            launch_arguments: None,
+            working_directory: executable
+                .parent()
+                .map(|path| path.to_string_lossy().into_owned()),
+            icon: None,
+            category: "test".into(),
+            aliases: Vec::new(),
+        };
+        let mut binding = Binding {
+            id: "stale-shortcut-test".into(),
+            name: None,
+            shortcut_path: Some(invalid_shortcut.to_string_lossy().into_owned()),
+            main_app,
+            open_apps: Vec::new(),
+            close_apps: Vec::new(),
+            force_close_app_ids: Vec::new(),
+        };
+
+        refresh_binding_shortcut(&mut binding, &executable);
+
+        assert_eq!(binding.shortcut_path, None);
+    }
 }
