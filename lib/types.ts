@@ -23,6 +23,7 @@ export interface AppInfo {
 
 export interface Binding {
   id: string;
+  shortcutPath?: string;
   mainApp: AppInfo;
   openApps: AppInfo[];
   closeApps: AppInfo[];
@@ -31,6 +32,7 @@ export interface Binding {
 
 export interface BindingDraft {
   id?: string;
+  shortcutPath?: string;
   mainApp: AppInfo | null;
   openApps: AppInfo[];
   closeApps: AppInfo[];

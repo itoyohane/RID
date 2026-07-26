@@ -105,7 +105,32 @@ pub fn save_binding(
     }
     validation::validate_binding(&binding)?;
     let _guard = storage_lock(&state)?;
-    persistence::upsert_binding(&app_data_dir(&app)?, binding)
+    let data_directory = app_data_dir(&app)?;
+    if binding.shortcut_path.is_none() {
+        binding.shortcut_path = persistence::load_bindings(&data_directory)?
+            .into_iter()
+            .find(|saved| saved.id == binding.id)
+            .and_then(|saved| saved.shortcut_path);
+    }
+    #[cfg(windows)]
+    {
+        let executable =
+            std::env::current_exe().map_err(|error| format!("无法定位 RID：{error}"))?;
+        if binding.shortcut_path.is_none() {
+            binding.shortcut_path = shortcut::find_binding_shortcut(&binding.id, &executable)
+                .map(|path| path.to_string_lossy().into_owned());
+        }
+        if let Some(path) = binding.shortcut_path.as_deref() {
+            shortcut::replace_binding_shortcut(
+                &PathBuf::from(path),
+                binding.name.as_deref().unwrap_or(&binding.main_app.name),
+                &binding.id,
+                &executable,
+                &PathBuf::from(&binding.main_app.path),
+            )?;
+        }
+    }
+    persistence::upsert_binding(&data_directory, binding)
 }
 
 #[tauri::command]
@@ -125,7 +150,7 @@ pub fn create_binding_shortcut(
     id: String,
     directory: String,
 ) -> Result<String, String> {
-    let binding = resolve_binding(&app, &state, Some(id), None)?;
+    let mut binding = resolve_binding(&app, &state, Some(id), None)?;
     validation::validate_binding(&binding)?;
     #[cfg(windows)]
     {
@@ -138,6 +163,9 @@ pub fn create_binding_shortcut(
             &executable,
             &PathBuf::from(&binding.main_app.path),
         )?;
+        binding.shortcut_path = Some(path.to_string_lossy().into_owned());
+        let _guard = storage_lock(&state)?;
+        persistence::upsert_binding(&app_data_dir(&app)?, binding)?;
         Ok(path.to_string_lossy().into_owned())
     }
     #[cfg(not(windows))]
@@ -227,17 +255,17 @@ pub fn launch_binding(
 pub fn run_saved_binding(
     app: AppHandle,
     id: String,
-    exit_when_done: bool,
+    reveal_when_done: bool,
 ) -> Result<ExecutionReport, String> {
     let state = app.state::<StorageState>();
     let binding = resolve_binding(&app, &state, Some(id), None)?;
-    execute_binding(app, binding, exit_when_done)
+    execute_binding(app, binding, reveal_when_done)
 }
 
 fn execute_binding(
     app: AppHandle,
     binding: Binding,
-    exit_when_done: bool,
+    reveal_when_done: bool,
 ) -> Result<ExecutionReport, String> {
     validation::validate_binding(&binding)?;
     let mut report = new_report(&binding, ExecutionMode::Launch);
@@ -415,8 +443,11 @@ fn execute_binding(
         completed_report.recovery_pending = false;
         let _ = persistence::write_execution_report(&report_directory, &completed_report);
         let _ = background_app.emit("execution-complete", &completed_report);
-        if exit_when_done {
-            background_app.exit(0);
+        if reveal_when_done {
+            if let Some(window) = background_app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
         }
     });
 

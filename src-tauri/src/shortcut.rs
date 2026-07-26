@@ -228,6 +228,35 @@ pub fn discover_shortcuts() -> Vec<ResolvedShortcut> {
     })
 }
 
+fn matches_binding_shortcut(
+    resolved: &ResolvedShortcut,
+    binding_id: &str,
+    rid_executable: &Path,
+) -> bool {
+    let expected_arguments = format!("--run-binding {binding_id}");
+    let expected_target = rid_executable.to_string_lossy().to_ascii_lowercase();
+    resolved.target.to_string_lossy().to_ascii_lowercase() == expected_target
+        && resolved.launch_arguments.as_deref() == Some(expected_arguments.as_str())
+}
+
+pub fn find_binding_shortcut(binding_id: &str, rid_executable: &Path) -> Option<PathBuf> {
+    let mut files = Vec::new();
+    for root in shortcut_roots() {
+        collect_lnk_files(&root, 0, &mut files);
+    }
+
+    let com_result = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+    let initialized_here = com_result.is_ok();
+    let matched = files.into_iter().find(|path| {
+        unsafe { resolve_shortcut(path) }
+            .is_some_and(|resolved| matches_binding_shortcut(&resolved, binding_id, rid_executable))
+    });
+    if initialized_here {
+        unsafe { CoUninitialize() };
+    }
+    matched
+}
+
 fn shortcut_file_name(name: &str) -> String {
     let sanitized = name
         .chars()
@@ -311,6 +340,45 @@ pub fn create_binding_shortcut(
     result.map(|_| shortcut_path)
 }
 
+pub fn replace_binding_shortcut(
+    shortcut_path: &Path,
+    display_name: &str,
+    binding_id: &str,
+    rid_executable: &Path,
+    icon_source: &Path,
+) -> Result<PathBuf, String> {
+    let valid_shortcut = shortcut_path.is_absolute()
+        && shortcut_path.is_file()
+        && shortcut_path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("lnk"))
+        && shortcut_path.parent().is_some_and(Path::is_dir);
+    if !valid_shortcut {
+        return Err("原快捷方式位置已失效，请重新选择保存位置".into());
+    }
+    if !rid_executable.is_file() {
+        return Err("找不到 RID 可执行文件，请重新安装 RID".into());
+    }
+
+    let com_result = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+    let initialized_here = com_result.is_ok();
+    let result = unsafe {
+        write_shortcut(
+            shortcut_path,
+            rid_executable,
+            binding_id,
+            display_name,
+            icon_source,
+        )
+    }
+    .map_err(|error| format!("无法更新原快捷方式：{error}"));
+    if initialized_here {
+        unsafe { CoUninitialize() };
+    }
+    result.map(|_| shortcut_path.to_path_buf())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -357,6 +425,29 @@ mod tests {
         assert_eq!(
             resolved.launch_arguments.as_deref(),
             Some("--run-binding bind-test")
+        );
+        assert!(matches_binding_shortcut(
+            &resolved,
+            "bind-test",
+            &executable
+        ));
+
+        replace_binding_shortcut(
+            &shortcut_path,
+            "Updated",
+            "bind-updated",
+            &executable,
+            &executable,
+        )
+        .unwrap();
+        let com_result = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+        let replaced = unsafe { resolve_shortcut(&shortcut_path) }.unwrap();
+        if com_result.is_ok() {
+            unsafe { CoUninitialize() };
+        }
+        assert_eq!(
+            replaced.launch_arguments.as_deref(),
+            Some("--run-binding bind-updated")
         );
     }
 }

@@ -259,4 +259,44 @@ describe("RID Tauri bridge", () => {
       directory: "C:\\Users\\RID\\Desktop",
     });
   });
+
+  it("native 保存时保留原快捷方式路径", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    invoke.mockResolvedValueOnce({
+      id: "bind-obsidian",
+      name: "Obsidian",
+      shortcut_path: "C:\\Users\\RID\\Desktop\\Obsidian 路 RID.lnk",
+      main_app: {
+        id: "obsidian",
+        name: "Obsidian",
+        path: "C:\\Obsidian.exe",
+      },
+      open_apps: [],
+      close_apps: [],
+      force_close_app_ids: [],
+    });
+    const { ridBridge } = await import("@/lib/tauri");
+
+    const saved = await ridBridge.saveBinding({
+      id: "bind-obsidian",
+      shortcutPath: "C:\\Users\\RID\\Desktop\\Obsidian 路 RID.lnk",
+      mainApp: mockApps[1],
+      openApps: [],
+      closeApps: [],
+      forceCloseAppIds: [],
+    });
+
+    expect(invoke).toHaveBeenCalledWith(
+      "save_binding",
+      expect.objectContaining({
+        binding: expect.objectContaining({
+          shortcut_path: "C:\\Users\\RID\\Desktop\\Obsidian 路 RID.lnk",
+        }),
+      }),
+    );
+    expect(saved.shortcutPath).toBe("C:\\Users\\RID\\Desktop\\Obsidian 路 RID.lnk");
+  });
 });

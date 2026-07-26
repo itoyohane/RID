@@ -22,6 +22,8 @@ pub struct Binding {
     pub id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shortcut_path: Option<String>,
     pub main_app: AppDescriptor,
     #[serde(default)]
     pub open_apps: Vec<AppDescriptor>,

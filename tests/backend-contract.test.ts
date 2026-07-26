@@ -65,6 +65,7 @@ describe("Tauri 后端命令契约", () => {
   );
 
   it("Binding DTO 使用 bridge 约定的 snake_case 字段", () => {
+    expect(modelsSource).toMatch(/pub struct Binding\s*\{[\s\S]*?\bshortcut_path:\s*Option<String>/);
     expect(modelsSource).toMatch(/pub struct Binding\s*\{[\s\S]*?\bmain_app:\s*AppDescriptor/);
     expect(modelsSource).toMatch(/pub struct Binding\s*\{[\s\S]*?\bopen_apps:\s*Vec<AppDescriptor>/);
     expect(modelsSource).toMatch(/pub struct Binding\s*\{[\s\S]*?\bclose_apps:\s*Vec<AppDescriptor>/);
@@ -81,6 +82,20 @@ describe("Tauri 后端命令契约", () => {
     expect(shortcutSource).toContain("Desktop");
     expect(platformSource).toContain("discover_shortcuts");
     expect(iconSource).toContain("data:image/png;base64,");
+  });
+
+  it("快捷方式运行完成后保留 RID，并在保存时原位更新快捷方式", () => {
+    expect(commandsSource).toContain("reveal_when_done");
+    expect(commandsSource).toContain('get_webview_window("main")');
+    expect(commandsSource).not.toContain("background_app.exit(0)");
+    expect(commandsSource).toContain("replace_binding_shortcut");
+    expect(shortcutSource).toContain("find_binding_shortcut");
+  });
+
+  it("应用图标优先使用 Windows 高分辨率原生提取", () => {
+    expect(iconSource).toContain("SHDefExtractIconW");
+    expect(iconSource).toContain("const ICON_SIZE: i32 = 128");
+    expect(iconSource).toContain("const NATIVE_ICON_SIZE: u32 = 256");
   });
 
   it("执行报告公开恢复状态与 snake_case 枚举", () => {

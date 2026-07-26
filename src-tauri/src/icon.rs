@@ -17,20 +17,21 @@ use windows::{
             SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
         },
         UI::{
-            Shell::ExtractIconExW,
+            Shell::{ExtractIconExW, SHDefExtractIconW},
             WindowsAndMessaging::{DestroyIcon, DrawIconEx, DI_NORMAL, HICON},
         },
     },
 };
 
-const ICON_SIZE: i32 = 40;
+const ICON_SIZE: i32 = 128;
+const NATIVE_ICON_SIZE: u32 = 256;
 
 fn wide_null(path: &Path) -> Vec<u16> {
     use std::os::windows::ffi::OsStrExt;
     path.as_os_str().encode_wide().chain(Some(0)).collect()
 }
 
-/// Extracts a small PNG from an executable, DLL, or shortcut-provided icon source.
+/// Extracts a high-resolution PNG from an executable, DLL, or shortcut-provided icon source.
 ///
 /// Returning a data URL keeps the frontend independent from filesystem protocols and
 /// lets the same icon render inside both the Tauri webview and browser-side tests.
@@ -39,12 +40,24 @@ pub fn extract_icon_data_url(path: &Path, index: i32) -> Option<String> {
         return None;
     }
 
-    let wide_path = wide_null(path);
     let mut icon = HICON::default();
-    let extracted =
-        unsafe { ExtractIconExW(PCWSTR(wide_path.as_ptr()), index, Some(&mut icon), None, 1) };
-    if extracted == 0 || icon.is_invalid() {
-        return None;
+    let wide_path = wide_null(path);
+    let native_result = unsafe {
+        SHDefExtractIconW(
+            PCWSTR(wide_path.as_ptr()),
+            index,
+            0,
+            Some(&mut icon),
+            None,
+            NATIVE_ICON_SIZE,
+        )
+    };
+    if native_result.is_err() || icon.is_invalid() {
+        let extracted =
+            unsafe { ExtractIconExW(PCWSTR(wide_path.as_ptr()), index, Some(&mut icon), None, 1) };
+        if extracted == 0 || icon.is_invalid() {
+            return None;
+        }
     }
 
     let png = unsafe { render_icon(icon) };
@@ -146,5 +159,11 @@ mod tests {
         let icon = extract_icon_data_url(&explorer, 0).expect("Explorer should expose an icon");
         assert!(icon.starts_with("data:image/png;base64,"));
         assert!(icon.len() > 100);
+        let bytes = STANDARD
+            .decode(icon.trim_start_matches("data:image/png;base64,"))
+            .unwrap();
+        let image = image::load_from_memory(&bytes).unwrap();
+        assert_eq!(image.width(), ICON_SIZE as u32);
+        assert_eq!(image.height(), ICON_SIZE as u32);
     }
 }
