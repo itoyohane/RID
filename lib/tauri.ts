@@ -1,4 +1,5 @@
 import { mockApps, mockBindings } from "@/lib/mock-data";
+import type { Locale } from "@/lib/i18n";
 import type { AppInfo, Binding, BindingDraft, RunResult } from "@/lib/types";
 
 const MOCK_BINDINGS_KEY = "rid.mock.bindings.v1";
@@ -241,13 +242,16 @@ export const ridBridge = {
     writeMockBindings(readMockBindings().filter((binding) => binding.id !== id));
   },
 
-  async selectShortcutDirectory(): Promise<string | null> {
+  async selectShortcutDirectory(locale: Locale = "en"): Promise<string | null> {
     if (!isTauriRuntime()) return "C:\\Users\\Demo\\Desktop";
     const { open } = await import("@tauri-apps/plugin-dialog");
     const selected = await open({
       directory: true,
       multiple: false,
-      title: "选择快捷方式保存位置",
+      title:
+        locale === "zh-CN"
+          ? "选择快捷方式保存位置"
+          : "Choose where to save the shortcut",
     });
     return typeof selected === "string" ? selected : null;
   },

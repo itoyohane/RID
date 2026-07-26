@@ -252,7 +252,7 @@ describe("RID Tauri bridge", () => {
     expect(open).toHaveBeenCalledWith({
       directory: true,
       multiple: false,
-      title: "选择快捷方式保存位置",
+      title: "Choose where to save the shortcut",
     });
     expect(invoke).toHaveBeenCalledWith("create_binding_shortcut", {
       id: "bind-obsidian",
