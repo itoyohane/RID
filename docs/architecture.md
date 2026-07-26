@@ -45,7 +45,10 @@ can display local application icons without exposing a general filesystem protoc
 6. Launch configured companion applications that are not already running.
 7. Launch the main application through `ShellExecuteExW`. Windows handles manifest
    driven UAC, while `SEE_MASK_NOCLOSEPROCESS` returns a waitable process handle.
-8. Monitor the handle and matching process IDs without blocking the Tauri UI thread.
+8. Monitor the launch handle, its descendant process family, and matching process IDs
+   without blocking the Tauri UI thread. Require an eight-second quiet period before
+   considering the main application stopped so updater-driven process replacement does
+   not trigger premature recovery.
 9. When the main application exits, relaunch only the applications recorded in step 5.
 
 The MVP never force-kills a process by default.
