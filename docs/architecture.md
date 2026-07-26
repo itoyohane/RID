@@ -16,6 +16,7 @@ The frontend uses these Tauri commands:
 | `list_bindings` | none | `Binding[]` |
 | `save_binding` | `{ binding }` | saved `Binding` |
 | `delete_binding` | `{ id }` | none |
+| `create_binding_shortcut` | `{ id, directory }` | generated `.lnk` path |
 | `dry_run_binding` | `{ binding }` | `ExecutionReport` |
 | `launch_binding` | `{ binding }` | `ExecutionReport` |
 
@@ -44,6 +45,18 @@ can display local application icons without exposing a general filesystem protoc
 8. When it exits, relaunch only the applications recorded in step 4.
 
 The MVP never force-kills a process by default.
+
+## Generated shortcut runtime
+
+RID creates the user-facing `.lnk` with Windows `IShellLinkW`. The link targets the
+installed RID executable, passes `--run-binding <binding-id>`, and uses the main
+application executable as its icon source. It does not copy the binding into the
+shortcut, so later edits remain effective.
+
+The Tauri window is initially hidden. A normal launch shows and focuses the window.
+A shortcut launch keeps it hidden, loads the saved binding by ID, runs the binding
+lifecycle on a worker thread, and exits after recovery completes. Startup failures
+are shown with a native error dialog before the background process exits.
 
 ## Persistence
 

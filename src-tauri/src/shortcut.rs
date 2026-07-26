@@ -8,6 +8,7 @@ use std::{
 use windows::{
     core::{Interface, PCWSTR},
     Win32::{
+        Foundation::BOOL,
         System::Com::{
             CoCreateInstance, CoInitializeEx, CoUninitialize, IPersistFile, CLSCTX_INPROC_SERVER,
             COINIT_APARTMENTTHREADED, STGM_READ,
@@ -38,6 +39,10 @@ fn from_wide(buffer: &[u16]) -> String {
 fn wide_null(path: &Path) -> Vec<u16> {
     use std::os::windows::ffi::OsStrExt;
     path.as_os_str().encode_wide().chain(Some(0)).collect()
+}
+
+fn wide_text(value: &str) -> Vec<u16> {
+    value.encode_utf16().chain(Some(0)).collect()
 }
 
 fn expand_environment(value: &str) -> String {
@@ -223,6 +228,89 @@ pub fn discover_shortcuts() -> Vec<ResolvedShortcut> {
     })
 }
 
+fn shortcut_file_name(name: &str) -> String {
+    let sanitized = name
+        .chars()
+        .map(|character| {
+            if r#"<>:"/\|?*"#.contains(character) || character.is_control() {
+                ' '
+            } else {
+                character
+            }
+        })
+        .collect::<String>();
+    let sanitized = sanitized.trim().trim_end_matches('.').trim();
+    let name = if sanitized.is_empty() {
+        "Bind Apps"
+    } else {
+        sanitized
+    };
+    format!("{name} · RID.lnk")
+}
+
+unsafe fn write_shortcut(
+    shortcut_path: &Path,
+    rid_executable: &Path,
+    binding_id: &str,
+    display_name: &str,
+    icon_source: &Path,
+) -> windows::core::Result<()> {
+    let link: IShellLinkW = CoCreateInstance(
+        &ShellLink,
+        None::<&windows::core::IUnknown>,
+        CLSCTX_INPROC_SERVER,
+    )?;
+    let executable = wide_null(rid_executable);
+    let arguments = wide_text(&format!("--run-binding {binding_id}"));
+    let description = wide_text(&format!("用 RID 启动 {display_name}"));
+    link.SetPath(PCWSTR(executable.as_ptr()))?;
+    link.SetArguments(PCWSTR(arguments.as_ptr()))?;
+    link.SetDescription(PCWSTR(description.as_ptr()))?;
+    if let Some(parent) = rid_executable.parent() {
+        let working_directory = wide_null(parent);
+        link.SetWorkingDirectory(PCWSTR(working_directory.as_ptr()))?;
+    }
+    if icon_source.is_file() {
+        let icon = wide_null(icon_source);
+        link.SetIconLocation(PCWSTR(icon.as_ptr()), 0)?;
+    }
+    let persist: IPersistFile = link.cast()?;
+    let destination = wide_null(shortcut_path);
+    persist.Save(PCWSTR(destination.as_ptr()), BOOL(1))
+}
+
+pub fn create_binding_shortcut(
+    directory: &Path,
+    display_name: &str,
+    binding_id: &str,
+    rid_executable: &Path,
+    icon_source: &Path,
+) -> Result<PathBuf, String> {
+    if !directory.is_absolute() || !directory.is_dir() {
+        return Err("请选择一个存在的文件夹".into());
+    }
+    if !rid_executable.is_file() {
+        return Err("找不到 RID 可执行文件，请重新安装 RID".into());
+    }
+    let shortcut_path = directory.join(shortcut_file_name(display_name));
+    let com_result = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+    let initialized_here = com_result.is_ok();
+    let result = unsafe {
+        write_shortcut(
+            &shortcut_path,
+            rid_executable,
+            binding_id,
+            display_name,
+            icon_source,
+        )
+    }
+    .map_err(|error| format!("无法创建快捷方式：{error}"));
+    if initialized_here {
+        unsafe { CoUninitialize() };
+    }
+    result.map(|_| shortcut_path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -241,5 +329,34 @@ mod tests {
     #[test]
     fn wide_strings_stop_at_the_first_null() {
         assert_eq!(from_wide(&[82, 73, 68, 0, 88]), "RID");
+    }
+
+    #[test]
+    fn creates_a_resolvable_binding_shortcut() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = std::env::current_exe().unwrap();
+        let shortcut_path = create_binding_shortcut(
+            directory.path(),
+            "Work / Focus",
+            "bind-test",
+            &executable,
+            &executable,
+        )
+        .unwrap();
+        assert_eq!(
+            shortcut_path.file_name().unwrap().to_string_lossy(),
+            "Work   Focus · RID.lnk"
+        );
+
+        let com_result = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+        let resolved = unsafe { resolve_shortcut(&shortcut_path) }.unwrap();
+        if com_result.is_ok() {
+            unsafe { CoUninitialize() };
+        }
+        assert_eq!(resolved.target, executable);
+        assert_eq!(
+            resolved.launch_arguments.as_deref(),
+            Some("--run-binding bind-test")
+        );
     }
 }

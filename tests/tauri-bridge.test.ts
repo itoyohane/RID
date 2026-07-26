@@ -6,9 +6,15 @@ import type { BindingDraft } from "@/lib/types";
 const { invoke } = vi.hoisted(() => ({
   invoke: vi.fn(),
 }));
+const { open } = vi.hoisted(() => ({
+  open: vi.fn(),
+}));
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke,
+}));
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open,
 }));
 
 const emptyDraft: BindingDraft = {
@@ -21,6 +27,7 @@ describe("RID Tauri bridge", () => {
   beforeEach(() => {
     vi.resetModules();
     invoke.mockReset();
+    open.mockReset();
   });
 
   afterEach(() => {
@@ -209,6 +216,39 @@ describe("RID Tauri bridge", () => {
       success: true,
       executionId: "execution-launch",
       recoveryPending: true,
+    });
+  });
+
+  it("native 环境选择目录并请求后端创建绑定快捷方式", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    open.mockResolvedValueOnce("C:\\Users\\RID\\Desktop");
+    invoke.mockResolvedValueOnce("C:\\Users\\RID\\Desktop\\Obsidian · RID.lnk");
+    const { ridBridge } = await import("@/lib/tauri");
+    const binding = {
+      id: "bind-obsidian",
+      mainApp: mockApps[1],
+      openApps: [mockApps[2]],
+      closeApps: [mockApps[4]],
+    };
+
+    await expect(ridBridge.selectShortcutDirectory()).resolves.toBe(
+      "C:\\Users\\RID\\Desktop",
+    );
+    await expect(
+      ridBridge.createBindingShortcut(binding, "C:\\Users\\RID\\Desktop"),
+    ).resolves.toBe("C:\\Users\\RID\\Desktop\\Obsidian · RID.lnk");
+
+    expect(open).toHaveBeenCalledWith({
+      directory: true,
+      multiple: false,
+      title: "选择快捷方式保存位置",
+    });
+    expect(invoke).toHaveBeenCalledWith("create_binding_shortcut", {
+      id: "bind-obsidian",
+      directory: "C:\\Users\\RID\\Desktop",
     });
   });
 });

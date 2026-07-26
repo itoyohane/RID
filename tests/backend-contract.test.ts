@@ -18,6 +18,7 @@ const commandNames = [
   "list_bindings",
   "save_binding",
   "delete_binding",
+  "create_binding_shortcut",
   "dry_run_binding",
   "launch_binding",
 ] as const;
@@ -40,6 +41,16 @@ describe("Tauri 后端命令契约", () => {
   it("保存与删除命令接收前端约定参数", () => {
     expect(commandDeclaration("save_binding")).toMatch(/\bbinding:\s*Binding\b/);
     expect(commandDeclaration("delete_binding")).toMatch(/\bid:\s*String\b/);
+  });
+
+  it("快捷方式命令通过 binding id 和用户目录生成启动入口", () => {
+    const declaration = commandDeclaration("create_binding_shortcut");
+    expect(declaration).toMatch(/\bid:\s*String\b/);
+    expect(declaration).toMatch(/\bdirectory:\s*String\b/);
+    expect(shortcutSource).toContain("--run-binding");
+    expect(shortcutSource).toContain("SetArguments");
+    expect(handlerSource).toContain("binding_id_from_args");
+    expect(handlerSource).toContain("run_saved_binding");
   });
 
   it.each(["dry_run_binding", "launch_binding"])(

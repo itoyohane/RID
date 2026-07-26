@@ -223,6 +223,8 @@ export function RidApp() {
   const [working, setWorking] = useState(false);
   const [report, setReport] = useState<RunResult | null>(null);
   const [savedBinding, setSavedBinding] = useState<Binding | null>(null);
+  const [shortcutPath, setShortcutPath] = useState<string | null>(null);
+  const [shortcutWorking, setShortcutWorking] = useState(false);
   const [toast, setToast] = useState("");
 
   const isNew = activeId === "new";
@@ -255,6 +257,7 @@ export function RidApp() {
     setActiveId("new");
     setDraft(createEmptyDraft());
     setSavedBinding(null);
+    setShortcutPath(null);
   }
 
   function selectBinding(binding: Binding) {
@@ -266,6 +269,7 @@ export function RidApp() {
       closeApps: [...binding.closeApps],
     });
     setSavedBinding(null);
+    setShortcutPath(null);
   }
 
   function removeApp(group: PickerGroup, appId: string) {
@@ -312,10 +316,26 @@ export function RidApp() {
       setDraft(saved);
       setActiveId(saved.id);
       setSavedBinding(saved);
+      setShortcutPath(null);
     } catch (error) {
       showToast(error instanceof Error ? error.message : "保存失败");
     } finally {
       setWorking(false);
+    }
+  }
+
+  async function createShortcut(binding: Binding) {
+    setShortcutWorking(true);
+    try {
+      const directory = await ridBridge.selectShortcutDirectory();
+      if (!directory) return;
+      const path = await ridBridge.createBindingShortcut(binding, directory);
+      setShortcutPath(path);
+      showToast("快捷方式已创建");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "创建快捷方式失败");
+    } finally {
+      setShortcutWorking(false);
     }
   }
 
@@ -563,15 +583,39 @@ export function RidApp() {
           >
             <div className="success-mark"><LinkSimple weight="bold" aria-hidden /></div>
             <span className="eyebrow">保存成功</span>
-            <h2 id="saved-title">Bind Apps 已保存</h2>
-            <p>RID 已按主应用名称保存这个模块，你可以随时从侧栏继续编辑。</p>
+            <h2 id="saved-title">{shortcutPath ? "快捷方式已创建" : "Bind Apps 已保存"}</h2>
+            <p>
+              {shortcutPath
+                ? "以后双击这个快捷方式，RID 会在后台执行当前 Bind Apps。"
+                : "选择一个文件夹创建启动快捷方式；你也可以先跳过，稍后再次保存来创建。"}
+            </p>
             <div className="shortcut-preview">
               <AppIcon app={savedBinding.mainApp} />
-              <span><strong>{savedBinding.mainApp.name}</strong><small>主应用模块</small></span>
+              <span>
+                <strong>{savedBinding.mainApp.name} · RID</strong>
+                <small>{shortcutPath ?? "关闭指定应用 → 打开搭配应用 → 启动主应用"}</small>
+              </span>
             </div>
-            <button className="primary-button primary-button--wide" type="button" onClick={() => setSavedBinding(null)}>
-              好的
-            </button>
+            <div className="saved-actions">
+              {!shortcutPath && (
+                <button
+                  className="primary-button primary-button--wide"
+                  type="button"
+                  disabled={shortcutWorking}
+                  onClick={() => createShortcut(savedBinding)}
+                >
+                  {shortcutWorking ? "正在创建…" : "选择位置并创建"}
+                </button>
+              )}
+              <button
+                className={shortcutPath ? "primary-button primary-button--wide" : "text-button"}
+                type="button"
+                disabled={shortcutWorking}
+                onClick={() => setSavedBinding(null)}
+              >
+                {shortcutPath ? "完成" : "暂不创建"}
+              </button>
+            </div>
           </section>
         </div>
       )}
