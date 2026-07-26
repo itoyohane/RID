@@ -82,6 +82,20 @@ describe("RID 新增选项页", () => {
     expect(await screen.findByText("选择主应用")).toBeInTheDocument();
   });
 
+  it("右上角可打开并关闭使用指南", async () => {
+    const user = userEvent.setup();
+    render(<RidApp />);
+
+    await user.click(screen.getByRole("button", { name: "打开使用指南" }));
+    const dialog = screen.getByRole("dialog", { name: "三步创建应用联动" });
+    expect(within(dialog).getByText("选择主应用")).toBeInTheDocument();
+    expect(within(dialog).getByText("配置打开与临时关闭")).toBeInTheDocument();
+    expect(within(dialog).getByText("保存并创建快捷方式")).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "开始配置" }));
+    expect(screen.queryByRole("dialog", { name: "三步创建应用联动" })).not.toBeInTheDocument();
+  });
+
   it("未选择主应用时禁用试运行与保存", async () => {
     render(<RidApp />);
     await screen.findByText("选择主应用");

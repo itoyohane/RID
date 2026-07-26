@@ -84,3 +84,58 @@ test("在浏览器 mock 中完成 Bind Apps 新增、试运行与保存", async 
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Visual Studio Code" })).toBeVisible();
 });
+
+test("指南、RID 标识和应用菜单保持在视口内", async ({ page }, testInfo) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "打开使用指南" }).click();
+  const guide = page.getByRole("dialog", { name: "三步创建应用联动" });
+  await expect(guide).toBeVisible();
+  await expect(guide.locator(".rid-mark img")).toHaveAttribute(
+    "src",
+    /rid-logo\.svg/,
+  );
+  await page.screenshot({
+    path: testInfo.outputPath("rid-guide.png"),
+    animations: "disabled",
+  });
+  await guide.getByRole("button", { name: "开始配置" }).click();
+
+  await pickApp(
+    page,
+    ruleSection(page, "主应用").getByRole("button", { name: "选择应用" }),
+    "vscd",
+    "Visual Studio Code",
+  );
+  await pickApp(
+    page,
+    ruleSection(page, "临时关闭应用").getByRole("button", { name: "添加应用" }),
+    "jt",
+    "截图工具",
+  );
+  await page.getByRole("button", { name: "截图工具 更多操作" }).click();
+
+  const popover = page.locator(".row-menu__popover");
+  await expect(popover).toBeVisible();
+  const box = await popover.boundingBox();
+  const viewport = page.viewportSize();
+  expect(box).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(viewport!.width);
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  const actionBar = await page.locator(".action-bar").boundingBox();
+  expect(actionBar).not.toBeNull();
+  expect(box!.y + box!.height).toBeLessThanOrEqual(actionBar!.y);
+  await expect(popover.getByText("可能导致未保存内容丢失")).toBeVisible();
+  await expect(popover.getByText("从 Bind Apps 中移除")).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("rid-app-menu.png"),
+    animations: "disabled",
+  });
+
+  const brandImages = page.locator(".window-brand .rid-mark img, .sidebar__brand .rid-mark img");
+  await expect(brandImages).toHaveCount(2);
+  await expect(brandImages.first()).toHaveAttribute("src", /rid-logo\.svg/);
+  await expect(brandImages.last()).toHaveAttribute("src", /rid-logo\.svg/);
+});

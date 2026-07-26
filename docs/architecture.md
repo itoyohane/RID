@@ -72,8 +72,10 @@ target executable, and icon without asking for a directory again.
 The Tauri window is initially hidden. A normal launch shows and focuses the window.
 A shortcut launch keeps it hidden, loads the saved binding by ID, runs the binding
 lifecycle on a worker thread, and shows/focuses the RID window after recovery
-completes instead of terminating RID with the main application. Startup failures are
-shown with a native error dialog.
+completes instead of terminating RID with the main application. RID assigns an
+explicit Windows AppUserModelID and reapplies its bundled window icon before showing
+the window, so a main-application-styled launcher shortcut cannot replace RID's
+taskbar identity. Startup failures are shown with a native error dialog.
 
 ## Persistence
 
