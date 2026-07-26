@@ -1,0 +1,26 @@
+# JavaScript
+node_modules/
+.next/
+out/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Tauri / Rust
+src-tauri/target/
+
+# Environment and editor files
+.env*
+!.env.example
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Previous visual prototype retained locally as a design reference
+lianqi-prototype/

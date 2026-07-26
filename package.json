@@ -1,0 +1,43 @@
+{
+  "name": "rid",
+  "version": "0.1.0",
+  "private": true,
+  "description": "RID - bind apps to a Windows main application.",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run test:rust"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "@tauri-apps/api": "^2.8.0",
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@tauri-apps/cli": "^2.8.0",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^16.0.0",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}
