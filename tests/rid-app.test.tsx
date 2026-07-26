@@ -192,6 +192,24 @@ describe("RID 新增选项页", () => {
     ).toHaveTextContent("C:\\Users\\Demo\\Desktop\\Obsidian · RID.lnk");
   });
 
+  it("保存失败时显示后端返回的具体原因", async () => {
+    const user = userEvent.setup();
+    bridge.saveBinding.mockRejectedValueOnce("原快捷方式位置已失效");
+    render(<RidApp />);
+    await screen.findByText("选择主应用");
+
+    await chooseApp(
+      section("主应用").getByRole("button", { name: "选择应用" }),
+      "obs",
+      "Obsidian",
+    );
+    await user.click(screen.getByRole("button", { name: "保存 Bind Apps" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "原快捷方式位置已失效",
+    );
+  });
+
   it("试运行通过 bridge 返回明确结果", async () => {
     const user = userEvent.setup();
     render(<RidApp />);
