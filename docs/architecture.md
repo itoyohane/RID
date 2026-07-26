@@ -38,13 +38,22 @@ can display local application icons without exposing a general filesystem protoc
 1. Validate every executable path and reject protected/system targets.
 2. Snapshot which configured close-app processes are currently running.
 3. Ask those processes to close normally.
-4. Record only the applications that actually stopped.
-5. Launch configured companion applications that are not already running.
-6. Launch the main application.
-7. Monitor the launched main process without blocking the Tauri UI thread.
-8. When it exits, relaunch only the applications recorded in step 4.
+4. Include hidden top-level windows for tray applications. If cooperative close
+   fails, force termination is available only for application IDs explicitly
+   opted in by the user.
+5. Record only the applications that actually stopped.
+6. Launch configured companion applications that are not already running.
+7. Launch the main application through `ShellExecuteExW`. Windows handles manifest
+   driven UAC, while `SEE_MASK_NOCLOSEPROCESS` returns a waitable process handle.
+8. Monitor the handle and matching process IDs without blocking the Tauri UI thread.
+9. When the main application exits, relaunch only the applications recorded in step 5.
 
 The MVP never force-kills a process by default.
+
+Every launch report is persisted under the application data `logs` directory. Main
+launch failures are fatal: RID restores any applications it already closed, displays
+a native error, and exits. Partial close/open failures are displayed as warnings while
+the successfully launched main application continues.
 
 ## Generated shortcut runtime
 

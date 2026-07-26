@@ -26,6 +26,7 @@ export interface Binding {
   mainApp: AppInfo;
   openApps: AppInfo[];
   closeApps: AppInfo[];
+  forceCloseAppIds: string[];
 }
 
 export interface BindingDraft {
@@ -33,6 +34,7 @@ export interface BindingDraft {
   mainApp: AppInfo | null;
   openApps: AppInfo[];
   closeApps: AppInfo[];
+  forceCloseAppIds: string[];
 }
 
 export type PickerGroup = "mainApp" | "openApps" | "closeApps";

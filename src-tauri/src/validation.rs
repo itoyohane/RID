@@ -99,6 +99,20 @@ pub fn validate_binding(binding: &Binding) -> Result<(), String> {
             return Err(format!("应用不能在绑定中重复：{}", app.name));
         }
     }
+    let close_ids = binding
+        .close_apps
+        .iter()
+        .map(|app| app.id.as_str())
+        .collect::<HashSet<_>>();
+    let mut force_ids = HashSet::new();
+    for id in &binding.force_close_app_ids {
+        if !close_ids.contains(id.as_str()) {
+            return Err(format!("强制结束设置引用了未配置的应用：{id}"));
+        }
+        if !force_ids.insert(id) {
+            return Err(format!("强制结束设置不能重复：{id}"));
+        }
+    }
     Ok(())
 }
 
@@ -131,7 +145,26 @@ mod tests {
             main_app: descriptor.clone(),
             open_apps: vec![descriptor],
             close_apps: vec![],
+            force_close_app_ids: vec![],
         };
         assert!(validate_binding(&binding).is_err());
+    }
+
+    #[test]
+    fn rejects_force_close_ids_outside_the_close_list() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("main.exe");
+        std::fs::write(&executable, b"test").unwrap();
+        let binding = Binding {
+            id: "binding-1".into(),
+            name: None,
+            main_app: app("main", &executable),
+            open_apps: vec![],
+            close_apps: vec![],
+            force_close_app_ids: vec!["missing".into()],
+        };
+        assert!(validate_binding(&binding)
+            .unwrap_err()
+            .contains("未配置的应用"));
     }
 }

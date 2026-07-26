@@ -57,6 +57,10 @@ test("在浏览器 mock 中完成 Bind Apps 新增、试运行与保存", async 
   await expect(
     ruleSection(page, "临时关闭应用").getByText("截图工具", { exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "截图工具 更多操作" }).click();
+  const forceClose = page.getByRole("button", { name: /关闭失败时强制结束/ });
+  await expect(forceClose).toHaveAttribute("aria-pressed", "false");
+  await forceClose.click();
 
   await page.getByRole("button", { name: "试运行" }).click();
   const runDialog = page.getByRole("dialog", { name: "Bind Apps 已准备好" });

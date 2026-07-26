@@ -17,7 +17,10 @@ function readMockBindings(): Binding[] {
   if (!value) return copy(mockBindings);
 
   try {
-    return JSON.parse(value) as Binding[];
+    return (JSON.parse(value) as Binding[]).map((binding) => ({
+      ...binding,
+      forceCloseAppIds: binding.forceCloseAppIds ?? [],
+    }));
   } catch {
     return copy(mockBindings);
   }
@@ -54,6 +57,7 @@ interface NativeBinding {
   main_app: NativeApp;
   open_apps: NativeApp[];
   close_apps: NativeApp[];
+  force_close_app_ids?: string[];
 }
 
 interface NativeReport {
@@ -111,6 +115,7 @@ function normalizeBinding(binding: NativeBinding): Binding {
     mainApp: normalizeApp(binding.main_app),
     openApps: (binding.open_apps ?? []).map(normalizeApp),
     closeApps: (binding.close_apps ?? []).map(normalizeApp),
+    forceCloseAppIds: binding.force_close_app_ids ?? [],
   };
 }
 
@@ -135,6 +140,7 @@ function toNativeBinding(draft: BindingDraft): NativeBinding {
     main_app: toNativeApp(draft.mainApp),
     open_apps: draft.openApps.map(toNativeApp),
     close_apps: draft.closeApps.map(toNativeApp),
+    force_close_app_ids: draft.forceCloseAppIds,
   };
 }
 
@@ -219,6 +225,7 @@ export const ridBridge = {
       mainApp: draft.mainApp,
       openApps: draft.openApps,
       closeApps: draft.closeApps,
+      forceCloseAppIds: draft.forceCloseAppIds,
     };
     const bindings = readMockBindings();
     const index = bindings.findIndex((binding) => binding.id === saved.id);

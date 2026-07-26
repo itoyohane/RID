@@ -69,12 +69,13 @@ export const mockBindings: Binding[] = [
     mainApp: mockApps[0],
     openApps: [mockApps[3]],
     closeApps: [mockApps[4], mockApps[1]],
+    forceCloseAppIds: [],
   },
   {
     id: "bind-obsidian",
     mainApp: mockApps[1],
     openApps: [mockApps[2]],
     closeApps: [mockApps[4]],
+    forceCloseAppIds: [],
   },
 ];
-
