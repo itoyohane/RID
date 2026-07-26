@@ -85,11 +85,20 @@ describe("Tauri 后端命令契约", () => {
   });
 
   it("快捷方式运行完成后保留 RID，并在保存时原位更新快捷方式", () => {
-    expect(commandsSource).toContain("reveal_when_done");
-    expect(commandsSource).toContain('get_webview_window("main")');
-    expect(commandsSource).not.toContain("background_app.exit(0)");
+    expect(commandsSource).toContain("exit_when_done");
+    expect(commandsSource).toContain("background_app.exit(0)");
+    expect(commandsSource).not.toContain("reveal_when_done");
     expect(commandsSource).toContain("replace_binding_shortcut");
     expect(shortcutSource).toContain("find_binding_shortcut");
+  });
+
+  it("支持发现、启动和监控 Steam 游戏快捷方式", () => {
+    expect(shortcutSource).toContain("steam://rungameid/");
+    expect(shortcutSource).toContain("steam://run/");
+    expect(shortcutSource).toContain("-applaunch");
+    expect(shortcutSource).toContain("IconFile");
+    expect(runtimeSource).toContain("steam_app_running");
+    expect(runtimeSource).toContain(String.raw`Software\Valve\Steam\Apps`);
   });
 
   it("Windows 进程与窗口显式使用 RID 身份和图标", () => {

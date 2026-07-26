@@ -2,6 +2,7 @@ use std::{
     collections::HashSet,
     path::{Path, PathBuf},
     ptr::null_mut,
+    sync::OnceLock,
     thread,
 };
 
@@ -82,7 +83,7 @@ fn shortcut_roots() -> Vec<PathBuf> {
     roots
 }
 
-fn collect_lnk_files(directory: &Path, depth: usize, output: &mut Vec<PathBuf>) {
+fn collect_shortcut_files(directory: &Path, depth: usize, output: &mut Vec<PathBuf>) {
     if depth > 16 {
         return;
     }
@@ -92,14 +93,144 @@ fn collect_lnk_files(directory: &Path, depth: usize, output: &mut Vec<PathBuf>) 
     for entry in entries.filter_map(Result::ok) {
         let path = entry.path();
         if path.is_dir() {
-            collect_lnk_files(&path, depth + 1, output);
+            collect_shortcut_files(&path, depth + 1, output);
         } else if path
             .extension()
             .and_then(|extension| extension.to_str())
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("lnk"))
+            .is_some_and(|extension| {
+                extension.eq_ignore_ascii_case("lnk") || extension.eq_ignore_ascii_case("url")
+            })
         {
             output.push(path);
         }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct SteamShortcutData {
+    app_id: u32,
+    icon_source: Option<PathBuf>,
+    icon_index: i32,
+}
+
+fn decode_shortcut_text(bytes: &[u8]) -> String {
+    if bytes.starts_with(&[0xff, 0xfe]) {
+        let wide = bytes[2..]
+            .chunks_exact(2)
+            .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+            .collect::<Vec<_>>();
+        String::from_utf16_lossy(&wide)
+    } else {
+        String::from_utf8_lossy(bytes)
+            .trim_start_matches('\u{feff}')
+            .to_string()
+    }
+}
+
+fn parse_steam_shortcut(contents: &str) -> Option<SteamShortcutData> {
+    let mut url = None;
+    let mut icon_source = None;
+    let mut icon_index = 0;
+    for line in contents.lines().map(str::trim) {
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        let value = value.trim().trim_matches('"');
+        if key.eq_ignore_ascii_case("URL") {
+            url = Some(value.to_string());
+        } else if key.eq_ignore_ascii_case("IconFile") {
+            icon_source = Some(PathBuf::from(expand_environment(value)));
+        } else if key.eq_ignore_ascii_case("IconIndex") {
+            icon_index = value.parse().unwrap_or(0);
+        }
+    }
+
+    let url = url?;
+    let normalized = url.to_ascii_lowercase();
+    let app_id = ["steam://rungameid/", "steam://run/"]
+        .into_iter()
+        .find_map(|prefix| normalized.strip_prefix(prefix))
+        .and_then(|value| value.split(['/', '?', '#']).next())
+        .and_then(|value| value.parse().ok())?;
+    Some(SteamShortcutData {
+        app_id,
+        icon_source,
+        icon_index,
+    })
+}
+
+fn discover_steam_executable() -> Option<PathBuf> {
+    use winreg::{
+        enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE},
+        RegKey,
+    };
+
+    let current_user = RegKey::predef(HKEY_CURRENT_USER);
+    let local_machine = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let mut candidates = Vec::new();
+    if let Ok(steam) = current_user.open_subkey(r"Software\Valve\Steam") {
+        if let Ok(path) = steam.get_value::<String, _>("SteamExe") {
+            candidates.push(PathBuf::from(path));
+        }
+        if let Ok(path) = steam.get_value::<String, _>("SteamPath") {
+            candidates.push(PathBuf::from(path).join("steam.exe"));
+        }
+    }
+    if let Ok(steam) = local_machine.open_subkey(r"SOFTWARE\WOW6432Node\Valve\Steam") {
+        if let Ok(path) = steam.get_value::<String, _>("InstallPath") {
+            candidates.push(PathBuf::from(path).join("steam.exe"));
+        }
+    }
+    if let Some(program_files) = std::env::var_os("ProgramFiles(x86)") {
+        candidates.push(PathBuf::from(program_files).join("Steam").join("steam.exe"));
+    }
+    candidates
+        .into_iter()
+        .map(|path| PathBuf::from(path.to_string_lossy().replace('/', "\\")))
+        .find(|path| path.is_file())
+}
+
+fn steam_executable() -> Option<PathBuf> {
+    static STEAM_EXECUTABLE: OnceLock<Option<PathBuf>> = OnceLock::new();
+    STEAM_EXECUTABLE
+        .get_or_init(discover_steam_executable)
+        .clone()
+}
+
+fn resolve_internet_shortcut(path: &Path) -> Option<ResolvedShortcut> {
+    let contents = decode_shortcut_text(&std::fs::read(path).ok()?);
+    let shortcut = parse_steam_shortcut(&contents)?;
+    let target = steam_executable()?;
+    let name = path.file_stem()?.to_string_lossy().trim().to_string();
+    if name.is_empty() {
+        return None;
+    }
+    let working_directory = target.parent().map(Path::to_path_buf);
+    Some(ResolvedShortcut {
+        name: name.clone(),
+        target,
+        launch_arguments: Some(format!("-applaunch {}", shortcut.app_id)),
+        working_directory,
+        icon_source: shortcut.icon_source.filter(|icon| icon.is_file()),
+        icon_index: shortcut.icon_index,
+        aliases: vec![
+            name.to_ascii_lowercase(),
+            "steam".into(),
+            shortcut.app_id.to_string(),
+        ],
+    })
+}
+
+fn resolve_application_shortcut(path: &Path) -> Option<ResolvedShortcut> {
+    match path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("lnk") => unsafe { resolve_shortcut(path) },
+        Some("url") => resolve_internet_shortcut(path),
+        _ => None,
     }
 }
 
@@ -189,7 +320,7 @@ pub fn discover_shortcuts() -> Vec<ResolvedShortcut> {
     let mut files = Vec::new();
     for root in shortcut_roots() {
         let mut root_files = Vec::new();
-        collect_lnk_files(&root, 0, &mut root_files);
+        collect_shortcut_files(&root, 0, &mut root_files);
         root_files.sort_by_key(|path| path.to_string_lossy().to_ascii_lowercase());
         files.extend(root_files);
     }
@@ -212,7 +343,7 @@ pub fn discover_shortcuts() -> Vec<ResolvedShortcut> {
                     let initialized_here = com_result.is_ok();
                     let shortcuts = chunk
                         .iter()
-                        .filter_map(|path| unsafe { resolve_shortcut(path) })
+                        .filter_map(|path| resolve_application_shortcut(path))
                         .collect::<Vec<_>>();
                     if initialized_here {
                         unsafe { CoUninitialize() };
@@ -242,8 +373,13 @@ fn matches_binding_shortcut(
 pub fn find_binding_shortcut(binding_id: &str, rid_executable: &Path) -> Option<PathBuf> {
     let mut files = Vec::new();
     for root in shortcut_roots() {
-        collect_lnk_files(&root, 0, &mut files);
+        collect_shortcut_files(&root, 0, &mut files);
     }
+    files.retain(|path| {
+        path.extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("lnk"))
+    });
 
     let com_result = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
     let initialized_here = com_result.is_ok();
@@ -397,6 +533,39 @@ mod tests {
     #[test]
     fn wide_strings_stop_at_the_first_null() {
         assert_eq!(from_wide(&[82, 73, 68, 0, 88]), "RID");
+    }
+
+    #[test]
+    fn parses_steam_internet_shortcuts() {
+        let parsed = parse_steam_shortcut(
+            r#"[InternetShortcut]
+IconIndex=0
+URL=steam://rungameid/730
+IconFile=C:\Program Files (x86)\Steam\steam\games\cs2.ico
+"#,
+        )
+        .unwrap();
+        assert_eq!(parsed.app_id, 730);
+        assert_eq!(parsed.icon_index, 0);
+        assert_eq!(
+            parsed.icon_source,
+            Some(PathBuf::from(
+                r"C:\Program Files (x86)\Steam\steam\games\cs2.ico"
+            ))
+        );
+    }
+
+    #[test]
+    fn decodes_utf16_internet_shortcuts() {
+        let text = "[InternetShortcut]\r\nURL=steam://run/730\r\n";
+        let mut bytes = vec![0xff, 0xfe];
+        bytes.extend(text.encode_utf16().flat_map(u16::to_le_bytes));
+        assert_eq!(
+            parse_steam_shortcut(&decode_shortcut_text(&bytes))
+                .unwrap()
+                .app_id,
+            730
+        );
     }
 
     #[test]

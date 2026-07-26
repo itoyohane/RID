@@ -255,17 +255,17 @@ pub fn launch_binding(
 pub fn run_saved_binding(
     app: AppHandle,
     id: String,
-    reveal_when_done: bool,
+    exit_when_done: bool,
 ) -> Result<ExecutionReport, String> {
     let state = app.state::<StorageState>();
     let binding = resolve_binding(&app, &state, Some(id), None)?;
-    execute_binding(app, binding, reveal_when_done)
+    execute_binding(app, binding, exit_when_done)
 }
 
 fn execute_binding(
     app: AppHandle,
     binding: Binding,
-    reveal_when_done: bool,
+    exit_when_done: bool,
 ) -> Result<ExecutionReport, String> {
     validation::validate_binding(&binding)?;
     let mut report = new_report(&binding, ExecutionMode::Launch);
@@ -443,14 +443,8 @@ fn execute_binding(
         completed_report.recovery_pending = false;
         let _ = persistence::write_execution_report(&report_directory, &completed_report);
         let _ = background_app.emit("execution-complete", &completed_report);
-        if reveal_when_done {
-            if let Some(window) = background_app.get_webview_window("main") {
-                if let Some(icon) = background_app.default_window_icon() {
-                    let _ = window.set_icon(icon.clone());
-                }
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+        if exit_when_done {
+            background_app.exit(0);
         }
     });
 
