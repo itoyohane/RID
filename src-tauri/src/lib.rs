@@ -16,6 +16,13 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 pub use models::{AppDescriptor, Binding, ExecutionOperation, ExecutionReport};
 
+#[cfg(windows)]
+fn set_windows_app_identity() {
+    use windows::{core::w, Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID};
+
+    let _ = unsafe { SetCurrentProcessExplicitAppUserModelID(w!("com.rid.desktop")) };
+}
+
 fn execution_failure_summary(report: &ExecutionReport) -> Option<(String, bool)> {
     use models::{OperationAction, OperationStatus};
 
@@ -66,6 +73,9 @@ where
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(windows)]
+    set_windows_app_identity();
+
     let requested_binding = binding_id_from_args(std::env::args_os());
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -80,6 +90,11 @@ pub fn run() {
             commands::dry_run_binding,
         ])
         .setup(move |app| {
+            if let (Some(window), Some(icon)) =
+                (app.get_webview_window("main"), app.default_window_icon())
+            {
+                window.set_icon(icon.clone())?;
+            }
             if let Some(binding_id) = requested_binding.clone() {
                 let app_handle = app.handle().clone();
                 std::thread::spawn(move || {

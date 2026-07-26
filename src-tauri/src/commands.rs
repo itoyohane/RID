@@ -445,6 +445,9 @@ fn execute_binding(
         let _ = background_app.emit("execution-complete", &completed_report);
         if reveal_when_done {
             if let Some(window) = background_app.get_webview_window("main") {
+                if let Some(icon) = background_app.default_window_icon() {
+                    let _ = window.set_icon(icon.clone());
+                }
                 let _ = window.show();
                 let _ = window.set_focus();
             }

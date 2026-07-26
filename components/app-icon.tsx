@@ -7,6 +7,7 @@ import {
   RocketLaunch,
 } from "@phosphor-icons/react";
 import Image from "next/image";
+import { useState } from "react";
 import type { AppInfo } from "@/lib/types";
 
 const fallbackIcons = {
@@ -28,6 +29,7 @@ export function AppIcon({
   app: AppInfo;
   size?: "normal" | "small" | "nav";
 }) {
+  const [failedIconUrl, setFailedIconUrl] = useState<string | null>(null);
   const Icon = fallbackIcons[app.iconKey ?? "app"];
   const tone =
     app.iconKey === "codex"
@@ -38,8 +40,15 @@ export function AppIcon({
 
   return (
     <span className={`app-icon app-icon--${size} app-icon--${tone}`}>
-      {app.iconUrl ? (
-        <Image src={app.iconUrl} alt="" width={128} height={128} unoptimized />
+      {app.iconUrl && failedIconUrl !== app.iconUrl ? (
+        <Image
+          src={app.iconUrl}
+          alt=""
+          width={128}
+          height={128}
+          unoptimized
+          onError={() => setFailedIconUrl(app.iconUrl ?? null)}
+        />
       ) : (
         <Icon weight="duotone" aria-hidden />
       )}

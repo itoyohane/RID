@@ -1,11 +1,11 @@
 "use client";
 
 import {
+  BookOpenText,
   Check,
   CheckCircle,
   DotsThree,
   GearSix,
-  LinkSimple,
   List,
   MagnifyingGlass,
   Play,
@@ -15,8 +15,9 @@ import {
   WarningCircle,
   X,
 } from "@phosphor-icons/react";
-import { useEffect, useMemo, useState } from "react";
+import { type MouseEvent, useEffect, useMemo, useState } from "react";
 import { AppIcon } from "@/components/app-icon";
+import { RidMark } from "@/components/rid-mark";
 import { scoreApp } from "@/lib/fuzzy";
 import { ridBridge } from "@/lib/tauri";
 import type {
@@ -52,6 +53,16 @@ function AppRow({
   onToggleForceClose?: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpensUp, setMenuOpensUp] = useState(false);
+
+  function toggleMenu(event: MouseEvent<HTMLButtonElement>) {
+    if (!menuOpen) {
+      const button = event.currentTarget.getBoundingClientRect();
+      setMenuOpensUp(window.innerHeight - button.bottom < 210);
+    }
+    setMenuOpen((value) => !value);
+  }
+
   return (
     <div className="app-row">
       <AppIcon app={app} />
@@ -66,12 +77,14 @@ function AppRow({
           type="button"
           aria-label={`${app.name} 更多操作`}
           aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((value) => !value)}
+          onClick={toggleMenu}
         >
           <DotsThree weight="bold" aria-hidden />
         </button>
         {menuOpen && (
-          <div className="row-menu__popover">
+          <div
+            className={`row-menu__popover${menuOpensUp ? " row-menu__popover--up" : ""}`}
+          >
             {onToggleForceClose && (
               <button
                 className="force-close-option"
@@ -192,6 +205,77 @@ function AppPicker({
   );
 }
 
+function GuideDialog({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="modal guide-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="guide-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="modal__header">
+          <div className="guide-heading">
+            <RidMark size="large" />
+            <div>
+              <span className="eyebrow">使用指南</span>
+              <h2 id="guide-title">三步创建应用联动</h2>
+            </div>
+          </div>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="关闭使用指南"
+            onClick={onClose}
+            autoFocus
+          >
+            <X aria-hidden />
+          </button>
+        </div>
+        <ol className="guide-steps">
+          <li>
+            <span>1</span>
+            <div>
+              <strong>选择主应用</strong>
+              <p>它是这条 Bind Apps 的启动入口，也会成为侧栏中的模块名称。</p>
+            </div>
+          </li>
+          <li>
+            <span>2</span>
+            <div>
+              <strong>配置打开与临时关闭</strong>
+              <p>添加需要一同启动的应用，以及运行期间需要暂时收起的应用。</p>
+            </div>
+          </li>
+          <li>
+            <span>3</span>
+            <div>
+              <strong>保存并创建快捷方式</strong>
+              <p>以后双击快捷方式即可执行；再次保存修改会自动更新原快捷方式。</p>
+            </div>
+          </li>
+        </ol>
+        <div className="guide-note">
+          <ShieldCheck weight="duotone" aria-hidden />
+          <span>RID 只恢复本次由它成功关闭的应用，强制结束始终需要单独开启。</span>
+        </div>
+        <button className="primary-button primary-button--wide" type="button" onClick={onClose}>
+          开始配置
+        </button>
+      </section>
+    </div>
+  );
+}
+
 function ResultDialog({
   report,
   onClose,
@@ -251,6 +335,7 @@ export function RidApp() {
   const [shortcutPath, setShortcutPath] = useState<string | null>(null);
   const [shortcutWorking, setShortcutWorking] = useState(false);
   const [toast, setToast] = useState("");
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const isNew = activeId === "new";
 
@@ -457,18 +542,27 @@ export function RidApp() {
           <List aria-hidden />
         </button>
         <div className="window-brand" data-tauri-drag-region>
-          <LinkSimple weight="bold" aria-hidden />
+          <RidMark size="small" />
           <span>RID</span>
         </div>
-        <div className="runtime-badge">{ridBridge.isNative() ? "Desktop" : "Browser preview"}</div>
+        <div className="window-actions">
+          <div className="runtime-badge">{ridBridge.isNative() ? "Desktop" : "Browser preview"}</div>
+          <button
+            className="icon-button icon-button--quiet guide-trigger"
+            type="button"
+            aria-label="打开使用指南"
+            title="使用指南"
+            onClick={() => setGuideOpen(true)}
+          >
+            <BookOpenText aria-hidden />
+          </button>
+        </div>
       </header>
 
       <div className={`app-frame${sidebarOpen ? "" : " sidebar-collapsed"}`}>
         <aside className="sidebar" aria-label="RID 导航">
           <div className="sidebar__brand">
-            <span className="brand-mark">
-              <LinkSimple weight="bold" aria-hidden />
-            </span>
+            <RidMark size="medium" />
             <strong>RID</strong>
           </div>
           <nav className="scene-nav">
@@ -631,6 +725,7 @@ export function RidApp() {
           onAdd={addApp}
         />
       )}
+      {guideOpen && <GuideDialog onClose={() => setGuideOpen(false)} />}
       {report && <ResultDialog report={report} onClose={() => setReport(null)} />}
       {savedBinding && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setSavedBinding(null)}>
@@ -641,7 +736,7 @@ export function RidApp() {
             aria-labelledby="saved-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <div className="success-mark"><LinkSimple weight="bold" aria-hidden /></div>
+            <div className="success-mark"><RidMark size="large" /></div>
             <span className="eyebrow">保存成功</span>
             <h2 id="saved-title">{shortcutPath ? "快捷方式已创建" : "Bind Apps 已保存"}</h2>
             <p>

@@ -92,6 +92,13 @@ describe("Tauri 后端命令契约", () => {
     expect(shortcutSource).toContain("find_binding_shortcut");
   });
 
+  it("Windows 进程与窗口显式使用 RID 身份和图标", () => {
+    expect(handlerSource).toContain("SetCurrentProcessExplicitAppUserModelID");
+    expect(handlerSource).toContain('w!("com.rid.desktop")');
+    expect(handlerSource).toContain("default_window_icon");
+    expect(handlerSource).toContain("window.set_icon");
+  });
+
   it("应用图标优先使用 Windows 高分辨率原生提取", () => {
     expect(iconSource).toContain("SHDefExtractIconW");
     expect(iconSource).toContain("const ICON_SIZE: i32 = 128");
