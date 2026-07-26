@@ -1,0 +1,70 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+
+const commandsSource = read("src-tauri/src/commands.rs");
+const handlerSource = read("src-tauri/src/lib.rs");
+const modelsSource = read("src-tauri/src/models.rs");
+const bridgeSource = read("lib/tauri.ts");
+
+const commandNames = [
+  "list_installed_apps",
+  "list_bindings",
+  "save_binding",
+  "delete_binding",
+  "dry_run_binding",
+  "launch_binding",
+] as const;
+
+function commandDeclaration(name: string) {
+  const start = commandsSource.indexOf(`pub fn ${name}`);
+  if (start < 0) return "";
+  const next = commandsSource.indexOf("#[tauri::command]", start);
+  return commandsSource.slice(start, next < 0 ? undefined : next);
+}
+
+describe("Tauri 后端命令契约", () => {
+  it.each(commandNames)("%s 是已注册的 Tauri command", (name) => {
+    expect(commandsSource).toMatch(
+      new RegExp(`#\\[tauri::command\\]\\s*pub fn ${name}\\s*\\(`),
+    );
+    expect(handlerSource).toContain(`commands::${name}`);
+  });
+
+  it("保存与删除命令接收前端约定参数", () => {
+    expect(commandDeclaration("save_binding")).toMatch(/\bbinding:\s*Binding\b/);
+    expect(commandDeclaration("delete_binding")).toMatch(/\bid:\s*String\b/);
+  });
+
+  it.each(["dry_run_binding", "launch_binding"])(
+    "%s 可接收 id 或完整 binding",
+    (name) => {
+      const declaration = commandDeclaration(name);
+      expect(declaration).toMatch(/\bid:\s*Option<String>/);
+      expect(declaration).toMatch(/\bbinding:\s*Option<Binding>/);
+      expect(declaration).toContain("resolve_binding");
+    },
+  );
+
+  it("Binding DTO 使用 bridge 约定的 snake_case 字段", () => {
+    expect(modelsSource).toMatch(/pub struct Binding\s*\{[\s\S]*?\bmain_app:\s*AppDescriptor/);
+    expect(modelsSource).toMatch(/pub struct Binding\s*\{[\s\S]*?\bopen_apps:\s*Vec<AppDescriptor>/);
+    expect(modelsSource).toMatch(/pub struct Binding\s*\{[\s\S]*?\bclose_apps:\s*Vec<AppDescriptor>/);
+  });
+
+  it("执行报告公开恢复状态与 snake_case 枚举", () => {
+    expect(modelsSource).toMatch(
+      /#\[serde\(rename_all = "snake_case"\)\]\s*pub enum OperationStatus/,
+    );
+    expect(modelsSource).toMatch(
+      /pub struct ExecutionReport\s*\{[\s\S]*?\brecovery_pending:\s*bool/,
+    );
+  });
+
+  it.each(commandNames)("前端 bridge 与后端命令 %s 保持同名", (name) => {
+    expect(bridgeSource).toContain(`"${name}"`);
+  });
+});
