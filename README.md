@@ -67,6 +67,9 @@ RID discovers applications from Windows registration data, desktop shortcuts, an
 - Execute bindings in a hidden background runner.
 - Support UAC-aware launches and per-app force-close fallback.
 - Restore only applications RID closed.
+- Switch between English and Simplified Chinese. RID follows the first Windows
+  preferred language on first launch: mainland China Simplified Chinese uses
+  Chinese, and every other locale uses English.
 
 ## Development
 

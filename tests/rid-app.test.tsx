@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RidApp } from "@/components/rid-app";
+import { LOCALE_STORAGE_KEY } from "@/lib/i18n";
 import { mockApps } from "@/lib/mock-data";
 import type { Binding, BindingDraft } from "@/lib/types";
 
@@ -40,6 +41,7 @@ async function chooseApp(trigger: HTMLElement, query: string, appName: string) {
 
 describe("RID 新增选项页", () => {
   beforeEach(() => {
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, "zh-CN");
     bridge.isNative.mockReturnValue(false);
     bridge.listApps.mockResolvedValue(mockApps);
     bridge.listBindings.mockResolvedValue([]);
@@ -69,6 +71,21 @@ describe("RID 新增选项页", () => {
         forceCloseAppIds: draft.forceCloseAppIds,
       };
     });
+  });
+
+  it("可以在应用内切换语言并记住选择", async () => {
+    const user = userEvent.setup();
+    render(<RidApp />);
+
+    const language = screen.getByRole("combobox", { name: "界面语言" });
+    await user.selectOptions(language, "en");
+
+    expect(screen.getByRole("heading", { name: "New binding" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Interface language" })).toHaveValue(
+      "en",
+    );
+    expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("en");
+    expect(document.documentElement).toHaveAttribute("lang", "en");
   });
 
   it("默认进入新增页，且侧栏 Logo 下首项为新增应用", async () => {
@@ -182,6 +199,7 @@ describe("RID 新增选项页", () => {
 
     await waitFor(() => {
       expect(bridge.selectShortcutDirectory).toHaveBeenCalledTimes(1);
+      expect(bridge.selectShortcutDirectory).toHaveBeenCalledWith("zh-CN");
       expect(bridge.createBindingShortcut).toHaveBeenCalledWith(
         expect.objectContaining({ id: "bind-obsidian" }),
         "C:\\Users\\Demo\\Desktop",
