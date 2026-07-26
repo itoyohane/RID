@@ -51,8 +51,12 @@ test("在浏览器 mock 中完成 Bind Apps 新增、试运行与保存", async 
   );
 
   await expect(ruleSection(page, "主应用").getByText("Visual Studio Code")).toBeVisible();
-  await expect(ruleSection(page, "同时打开应用").getByText("Codex")).toBeVisible();
-  await expect(ruleSection(page, "临时关闭应用").getByText("截图工具")).toBeVisible();
+  await expect(
+    ruleSection(page, "同时打开应用").getByText("Codex", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    ruleSection(page, "临时关闭应用").getByText("截图工具", { exact: true }),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "试运行" }).click();
   const runDialog = page.getByRole("dialog", { name: "Bind Apps 已准备好" });
