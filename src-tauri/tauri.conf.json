@@ -28,8 +28,10 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "icon": [
+      "icons/icon.ico"
+    ],
     "category": "Utility",
     "shortDescription": "Bind apps to a main Windows application."
   }
 }
-

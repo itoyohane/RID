@@ -14,6 +14,23 @@ RID 是一款 Windows 桌面工具。你可以围绕一个“主应用”创建�
 - 打开 Obsidian，同时启动 Codex；
 - 打开工作软件时，一并启动常用的编辑器和文件夹。
 
+![RID 新增选项页面](docs/assets/rid-overview.png)
+
+## 下载与安装
+
+RID 当前支持 64 位 Windows 10 和 Windows 11。
+
+1. 打开 [GitHub Releases](https://github.com/itoyohane/RID/releases)。
+2. 进入最新版本，下载 `RID_版本号_x64-setup.exe`。这是推荐给普通用户的安装程序。
+3. 双击安装程序，按照提示完成安装。
+4. 安装完成后，从 Windows 开始菜单搜索并打开 **RID**。
+
+如果你需要 MSI，可以下载 `RID_版本号_x64_en-US.msi`，它更适合企业部署或统一安装。
+
+> RID 目前是未签名的 MVP。Windows SmartScreen 可能显示“Windows 已保护你的电脑”。请确认安装包来自本仓库的 Releases 页面，再点击“更多信息”→“仍要运行”。如果 Releases 页面暂时没有安装包，请向项目维护者获取，不要从未知来源下载。
+
+卸载 RID：打开 Windows“设置”→“应用”→“已安装的应用”，找到 **RID** 并选择卸载。
+
 ## 使用方法
 
 1. 点击侧栏中的“新增应用”。
@@ -40,7 +57,7 @@ RID 目前是 Windows MVP，支持：
 - 保存规则、试运行和正式运行；
 - 主应用退出后的选择性恢复。
 
-## 本地运行
+## 开发者运行
 
 需要 Node.js、Rust 和 Windows WebView2 开发环境。
 
@@ -49,11 +66,16 @@ npm install
 npm run tauri:dev
 ```
 
-生成 Windows 应用：
+生成 Windows 安装包：
 
 ```powershell
 npm run tauri:build
 ```
+
+构建完成后可以在以下目录找到：
+
+- `src-tauri/target/release/bundle/nsis/`：推荐给普通用户的 `.exe` 安装程序；
+- `src-tauri/target/release/bundle/msi/`：用于企业部署的 `.msi` 安装包。
 
 浏览器界面预览：
 
