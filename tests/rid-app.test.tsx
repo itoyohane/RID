@@ -62,6 +62,7 @@ describe("RID 新增选项页", () => {
       if (!draft.mainApp) throw new Error("请先选择主应用");
       return {
         id: draft.id ?? `bind-${draft.mainApp.id}`,
+        shortcutPath: draft.shortcutPath,
         mainApp: draft.mainApp,
         openApps: draft.openApps,
         closeApps: draft.closeApps,
@@ -220,5 +221,35 @@ describe("RID 新增选项页", () => {
       closeApps: [expect.objectContaining({ id: "screenshot" })],
       forceCloseAppIds: [],
     });
+  });
+
+  it("编辑已有模块后直接更新原快捷方式", async () => {
+    const user = userEvent.setup();
+    const saved: Binding = {
+      id: "bind-obsidian",
+      shortcutPath: "C:\\Users\\Demo\\Desktop\\Obsidian 路 RID.lnk",
+      mainApp: mockApps[1],
+      openApps: [mockApps[2]],
+      closeApps: [],
+      forceCloseAppIds: [],
+    };
+    bridge.listBindings.mockResolvedValue([saved]);
+    render(<RidApp />);
+
+    const navigation = screen.getByRole("complementary", { name: "RID 导航" });
+    await user.click(await within(navigation).findByRole("button", { name: "Obsidian" }));
+    await user.click(screen.getByRole("button", { name: "保存更改" }));
+
+    await waitFor(() =>
+      expect(bridge.saveBinding).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "bind-obsidian",
+          shortcutPath: saved.shortcutPath,
+        }),
+      ),
+    );
+    expect(screen.queryByRole("dialog", { name: "Bind Apps 已保存" })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("原快捷方式已更新");
+    expect(bridge.selectShortcutDirectory).not.toHaveBeenCalled();
   });
 });

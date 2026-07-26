@@ -142,6 +142,7 @@ mod tests {
         let binding = Binding {
             id: "binding-1".into(),
             name: None,
+            shortcut_path: None,
             main_app: descriptor.clone(),
             open_apps: vec![descriptor],
             close_apps: vec![],
@@ -158,6 +159,7 @@ mod tests {
         let binding = Binding {
             id: "binding-1".into(),
             name: None,
+            shortcut_path: None,
             main_app: app("main", &executable),
             open_apps: vec![],
             close_apps: vec![],

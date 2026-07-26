@@ -100,6 +100,7 @@ mod tests {
         let mut binding = Binding {
             id: "one".into(),
             name: Some("First".into()),
+            shortcut_path: None,
             main_app: app("main", &executable),
             open_apps: Vec::new(),
             close_apps: Vec::new(),
@@ -110,6 +111,7 @@ mod tests {
         assert_eq!(load_bindings(dir.path()).unwrap(), vec![binding.clone()]);
 
         binding.name = Some("Updated".into());
+        binding.shortcut_path = Some(dir.path().join("Main - RID.lnk").display().to_string());
         upsert_binding(dir.path(), binding.clone()).unwrap();
         assert_eq!(load_bindings(dir.path()).unwrap(), vec![binding]);
     }
@@ -122,6 +124,7 @@ mod tests {
         let binding = Binding {
             id: "one".into(),
             name: None,
+            shortcut_path: None,
             main_app: app("main", &executable),
             open_apps: Vec::new(),
             close_apps: Vec::new(),

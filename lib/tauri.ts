@@ -54,6 +54,7 @@ interface NativeApp {
 interface NativeBinding {
   id: string;
   name?: string | null;
+  shortcut_path?: string | null;
   main_app: NativeApp;
   open_apps: NativeApp[];
   close_apps: NativeApp[];
@@ -112,6 +113,7 @@ function normalizeApp(app: NativeApp): AppInfo {
 function normalizeBinding(binding: NativeBinding): Binding {
   return {
     id: binding.id,
+    shortcutPath: binding.shortcut_path ?? undefined,
     mainApp: normalizeApp(binding.main_app),
     openApps: (binding.open_apps ?? []).map(normalizeApp),
     closeApps: (binding.close_apps ?? []).map(normalizeApp),
@@ -137,6 +139,7 @@ function toNativeBinding(draft: BindingDraft): NativeBinding {
   return {
     id: draft.id ?? "",
     name: draft.mainApp.name,
+    shortcut_path: draft.shortcutPath,
     main_app: toNativeApp(draft.mainApp),
     open_apps: draft.openApps.map(toNativeApp),
     close_apps: draft.closeApps.map(toNativeApp),
@@ -222,6 +225,7 @@ export const ridBridge = {
 
     const saved: Binding = {
       id: draft.id ?? `bind-${draft.mainApp.id}-${Date.now()}`,
+      shortcutPath: draft.shortcutPath,
       mainApp: draft.mainApp,
       openApps: draft.openApps,
       closeApps: draft.closeApps,

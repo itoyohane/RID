@@ -39,7 +39,7 @@ export function AppIcon({
   return (
     <span className={`app-icon app-icon--${size} app-icon--${tone}`}>
       {app.iconUrl ? (
-        <Image src={app.iconUrl} alt="" width={40} height={40} unoptimized />
+        <Image src={app.iconUrl} alt="" width={128} height={128} unoptimized />
       ) : (
         <Icon weight="duotone" aria-hidden />
       )}

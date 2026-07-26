@@ -289,6 +289,7 @@ export function RidApp() {
     setActiveId(binding.id);
     setDraft({
       id: binding.id,
+      shortcutPath: binding.shortcutPath,
       mainApp: binding.mainApp,
       openApps: [...binding.openApps],
       closeApps: [...binding.closeApps],
@@ -361,8 +362,13 @@ export function RidApp() {
       });
       setDraft(saved);
       setActiveId(saved.id);
-      setSavedBinding(saved);
-      setShortcutPath(null);
+      setShortcutPath(saved.shortcutPath ?? null);
+      if (!isNew && saved.shortcutPath) {
+        setSavedBinding(null);
+        showToast("更改已保存，原快捷方式已更新");
+      } else {
+        setSavedBinding(saved);
+      }
     } catch (error) {
       showToast(error instanceof Error ? error.message : "保存失败");
     } finally {
@@ -376,6 +382,12 @@ export function RidApp() {
       const directory = await ridBridge.selectShortcutDirectory();
       if (!directory) return;
       const path = await ridBridge.createBindingShortcut(binding, directory);
+      const updated = { ...binding, shortcutPath: path };
+      setSavedBinding(updated);
+      setDraft((current) => ({ ...current, shortcutPath: path }));
+      setBindings((current) =>
+        current.map((item) => (item.id === binding.id ? updated : item)),
+      );
       setShortcutPath(path);
       showToast("快捷方式已创建");
     } catch (error) {

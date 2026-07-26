@@ -30,8 +30,10 @@ through `IShellLinkW`, including their raw launch arguments and working director
 Results are deduplicated by executable path plus launch arguments and cached for the
 desktop session.
 
-Associated Windows icons are rendered to small PNG data URLs in Rust, so the webview
-can display local application icons without exposing a general filesystem protocol.
+Associated Windows icons are requested from the native shell extractor at 256 pixels,
+rendered to 128-pixel PNG data URLs in Rust, and only fall back to `ExtractIconExW`
+when the high-resolution resource cannot be loaded. The webview can therefore display
+crisp local application icons without exposing a general filesystem protocol.
 
 ## Binding lifecycle
 
@@ -63,12 +65,15 @@ the successfully launched main application continues.
 RID creates the user-facing `.lnk` with Windows `IShellLinkW`. The link targets the
 installed RID executable, passes `--run-binding <binding-id>`, and uses the main
 application executable as its icon source. It does not copy the binding into the
-shortcut, so later edits remain effective.
+shortcut, so later edits remain effective. The generated path is persisted with the
+binding; subsequent saves rewrite that exact `.lnk` in place to refresh its metadata,
+target executable, and icon without asking for a directory again.
 
 The Tauri window is initially hidden. A normal launch shows and focuses the window.
 A shortcut launch keeps it hidden, loads the saved binding by ID, runs the binding
-lifecycle on a worker thread, and exits after recovery completes. Startup failures
-are shown with a native error dialog before the background process exits.
+lifecycle on a worker thread, and shows/focuses the RID window after recovery
+completes instead of terminating RID with the main application. Startup failures are
+shown with a native error dialog.
 
 ## Persistence
 
