@@ -77,15 +77,9 @@ interface NativeReport {
 
 function inferIcon(app: NativeApp): Pick<AppInfo, "iconKey" | "iconUrl"> {
   const key = `${app.name} ${app.path}`.toLocaleLowerCase();
-  if (key.includes("cyberpunk")) {
-    return { iconKey: "cyberpunk", iconUrl: "/assets/game-cyberpunk.png" };
-  }
-  if (key.includes("obsidian")) {
-    return { iconKey: "obsidian", iconUrl: "/assets/obsidian.png" };
-  }
-  if (key.includes("snipping") || key.includes("截图")) {
-    return { iconKey: "screenshot", iconUrl: "/assets/screenshot-tool.png" };
-  }
+  if (key.includes("cyberpunk")) return { iconKey: "cyberpunk" };
+  if (key.includes("obsidian")) return { iconKey: "obsidian" };
+  if (key.includes("snipping") || key.includes("截图")) return { iconKey: "screenshot" };
   if (key.includes("codex")) return { iconKey: "codex" };
   if (key.includes("code.exe")) return { iconKey: "vscode" };
   if (key.includes("explorer.exe")) return { iconKey: "folder" };

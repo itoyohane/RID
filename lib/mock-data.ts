@@ -7,7 +7,6 @@ export const mockApps: AppInfo[] = [
     path: "D:\\Games\\Cyberpunk 2077\\bin\\x64\\Cyberpunk2077.exe",
     aliases: ["cyberpunk", "2077", "game", "游戏"],
     iconKey: "cyberpunk",
-    iconUrl: "/assets/game-cyberpunk.png",
   },
   {
     id: "obsidian",
@@ -15,7 +14,6 @@ export const mockApps: AppInfo[] = [
     path: "C:\\Users\\User\\AppData\\Local\\Obsidian\\Obsidian.exe",
     aliases: ["obs", "notes", "笔记", "知识库"],
     iconKey: "obsidian",
-    iconUrl: "/assets/obsidian.png",
   },
   {
     id: "codex",
@@ -30,7 +28,6 @@ export const mockApps: AppInfo[] = [
     path: "C:\\Program Files\\NetBooster\\NetBooster.exe",
     aliases: ["jiasuqi", "netbooster", "network", "网络"],
     iconKey: "accelerator",
-    iconUrl: "/assets/accelerator.png",
   },
   {
     id: "screenshot",
@@ -38,7 +35,6 @@ export const mockApps: AppInfo[] = [
     path: "C:\\Windows\\System32\\SnippingTool.exe",
     aliases: ["jietu", "snipping", "capture", "screen", "截图"],
     iconKey: "screenshot",
-    iconUrl: "/assets/screenshot-tool.png",
   },
   {
     id: "launcher",

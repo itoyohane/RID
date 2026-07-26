@@ -9,6 +9,7 @@ test-results/
 
 # Tauri / Rust
 src-tauri/target/
+src-tauri/gen/
 
 # Environment and editor files
 .env*
@@ -21,6 +22,3 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
-
-# Previous visual prototype retained locally as a design reference
-lianqi-prototype/
