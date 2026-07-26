@@ -65,6 +65,7 @@ describe("RID 新增选项页", () => {
         mainApp: draft.mainApp,
         openApps: draft.openApps,
         closeApps: draft.closeApps,
+        forceCloseAppIds: draft.forceCloseAppIds,
       };
     });
   });
@@ -128,6 +129,10 @@ describe("RID 新增选项页", () => {
     expect(section("同时打开应用").getByText("将打开")).toBeInTheDocument();
     expect(section("临时关闭应用").getByText("截图工具")).toBeInTheDocument();
     expect(section("临时关闭应用").getByText("将临时关闭")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "截图工具 更多操作" }));
+    const forceOption = screen.getByRole("button", { name: /关闭失败时强制结束/ });
+    expect(forceOption).toHaveAttribute("aria-pressed", "false");
+    await user.click(forceOption);
 
     await user.click(screen.getByRole("button", { name: "保存 Bind Apps" }));
 
@@ -137,6 +142,7 @@ describe("RID 新增选项页", () => {
           mainApp: expect.objectContaining({ id: "obsidian" }),
           openApps: [expect.objectContaining({ id: "codex" })],
           closeApps: [expect.objectContaining({ id: "screenshot" })],
+          forceCloseAppIds: ["screenshot"],
         }),
       ),
     );
@@ -198,6 +204,7 @@ describe("RID 新增选项页", () => {
       mainApp: mockApps[1],
       openApps: [mockApps[2]],
       closeApps: [mockApps[4]],
+      forceCloseAppIds: [],
     };
     bridge.listBindings.mockResolvedValue([saved]);
     render(<RidApp />);
@@ -211,6 +218,7 @@ describe("RID 新增选项页", () => {
       mainApp: expect.objectContaining({ id: "obsidian" }),
       openApps: [expect.objectContaining({ id: "codex" })],
       closeApps: [expect.objectContaining({ id: "screenshot" })],
+      forceCloseAppIds: [],
     });
   });
 });

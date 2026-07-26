@@ -160,6 +160,7 @@ pub fn dry_run_binding(
 
     for close_app in &binding.close_apps {
         let running = runtime::is_running(close_app);
+        let force_enabled = binding.force_close_app_ids.contains(&close_app.id);
         report.operations.push(operation(
             close_app,
             OperationAction::Close,
@@ -168,7 +169,13 @@ pub fn dry_run_binding(
             } else {
                 OperationStatus::Skipped
             },
-            (!running).then(|| "应用当前未运行".into()),
+            if !running {
+                Some("应用当前未运行".into())
+            } else if force_enabled {
+                Some("正常关闭失败时，将按你的设置强制结束".into())
+            } else {
+                None
+            },
         ));
         if running {
             report.operations.push(operation(
@@ -237,6 +244,7 @@ fn execute_binding(
     let mut restore_apps = Vec::<AppDescriptor>::new();
 
     for close_app in &binding.close_apps {
+        let force_enabled = binding.force_close_app_ids.contains(&close_app.id);
         if !runtime::is_running(close_app) {
             report.operations.push(operation(
                 close_app,
@@ -262,6 +270,33 @@ fn execute_binding(
                 OperationStatus::Skipped,
                 Some("应用在关闭前已经退出".into()),
             )),
+            Err(graceful_error) if force_enabled => {
+                match runtime::force_close(close_app, Duration::from_secs(5)) {
+                    Ok(true) => {
+                        report.operations.push(operation(
+                            close_app,
+                            OperationAction::Close,
+                            OperationStatus::Success,
+                            Some(format!(
+                                "正常关闭失败，已按你的设置强制结束：{graceful_error}"
+                            )),
+                        ));
+                        restore_apps.push(close_app.clone());
+                    }
+                    Ok(false) => report.operations.push(operation(
+                        close_app,
+                        OperationAction::Close,
+                        OperationStatus::Skipped,
+                        Some("应用在强制结束前已经退出".into()),
+                    )),
+                    Err(force_error) => report.operations.push(operation(
+                        close_app,
+                        OperationAction::Close,
+                        OperationStatus::Failed,
+                        Some(format!("{graceful_error}；{force_error}")),
+                    )),
+                }
+            }
             Err(error) => report.operations.push(operation(
                 close_app,
                 OperationAction::Close,
@@ -298,24 +333,24 @@ fn execute_binding(
     }
 
     let main_running = runtime::is_running(&binding.main_app);
-    let main_started = if main_running {
+    let (main_started, main_launch) = if main_running {
         report.operations.push(operation(
             &binding.main_app,
             OperationAction::LaunchMain,
             OperationStatus::Skipped,
             Some("主应用已在运行；等待现有实例退出".into()),
         ));
-        true
+        (true, None)
     } else {
         match runtime::spawn_application(&binding.main_app) {
-            Ok(_) => {
+            Ok(launch) => {
                 report.operations.push(operation(
                     &binding.main_app,
                     OperationAction::LaunchMain,
                     OperationStatus::Success,
                     None,
                 ));
-                true
+                (true, Some(launch))
             }
             Err(error) => {
                 report.operations.push(operation(
@@ -324,7 +359,7 @@ fn execute_binding(
                     OperationStatus::Failed,
                     Some(error),
                 ));
-                false
+                (false, None)
             }
         }
     };
@@ -342,9 +377,7 @@ fn execute_binding(
                 message,
             ));
         }
-        if exit_when_done {
-            app.exit(1);
-        }
+        let _ = persistence::write_execution_report(&app_data_dir(&app)?, &report);
         return Ok(report);
     }
 
@@ -361,8 +394,10 @@ fn execute_binding(
     let background_app = app.clone();
     let main_app = binding.main_app.clone();
     let mut completed_report = report.clone();
+    let report_directory = app_data_dir(&app)?;
+    let _ = persistence::write_execution_report(&report_directory, &report);
     thread::spawn(move || {
-        runtime::wait_until_stopped(&main_app);
+        runtime::wait_until_stopped(&main_app, main_launch);
         for restore_app in restore_apps {
             let (status, message) = match runtime::spawn_application(&restore_app) {
                 Ok(_) => (OperationStatus::Success, None),
@@ -378,6 +413,7 @@ fn execute_binding(
             }
         }
         completed_report.recovery_pending = false;
+        let _ = persistence::write_execution_report(&report_directory, &completed_report);
         let _ = background_app.emit("execution-complete", &completed_report);
         if exit_when_done {
             background_app.exit(0);

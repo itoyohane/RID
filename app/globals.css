@@ -232,6 +232,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--blue-hover)
 }
 .row-menu__popover button { width: 100%; padding: 10px 12px; border: 0; border-radius: 6px; background: transparent; text-align: left; cursor: pointer; }
 .row-menu__popover button:hover { background: var(--soft); }
+.row-menu__popover .force-close-option { display: grid; grid-template-columns: 18px minmax(0,1fr); gap: 8px; min-width: 230px; }
+.force-close-option > span:first-child { color: #c43b36; font-weight: 700; }
+.force-close-option > span:last-child { display: grid; gap: 3px; }
+.force-close-option small { color: var(--muted); font-size: 11px; }
 .inline-empty {
   width: 100%;
   min-height: 72px;
@@ -374,6 +378,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--blue-hover)
 .success-mark svg { width: 30px; height: 30px; }
 .run-results { display: grid; gap: 10px; max-height: 260px; overflow: auto; margin-top: 24px; padding: 18px; border-radius: 12px; background: var(--soft); text-align: left; }
 .run-results span { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.run-results span > span { min-width: 0; display: grid; gap: 3px; }
+.run-results small { color: var(--muted); font-size: 12px; line-height: 1.4; }
 .run-results svg { flex: 0 0 auto; color: var(--success); }
 .shortcut-preview { display: flex; align-items: center; gap: 14px; margin-top: 24px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; text-align: left; }
 .shortcut-preview > span:not(.app-icon) { min-width: 0; display: grid; gap: 5px; }

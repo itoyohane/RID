@@ -21,6 +21,7 @@ const emptyDraft: BindingDraft = {
   mainApp: null,
   openApps: [],
   closeApps: [],
+  forceCloseAppIds: [],
 };
 
 describe("RID Tauri bridge", () => {
@@ -51,6 +52,7 @@ describe("RID Tauri bridge", () => {
       },
       openApps: [mockApps[2]],
       closeApps: [mockApps[4]],
+      forceCloseAppIds: [],
     };
 
     const saved = await ridBridge.saveBinding(draft);
@@ -74,6 +76,7 @@ describe("RID Tauri bridge", () => {
       mainApp: mockApps[1],
       openApps: [mockApps[2]],
       closeApps: [mockApps[4]],
+      forceCloseAppIds: [],
     };
 
     const promise = ridBridge.runBinding(draft);
@@ -153,6 +156,7 @@ describe("RID Tauri bridge", () => {
       },
       openApps: [mockApps[2]],
       closeApps: [mockApps[4]],
+      forceCloseAppIds: ["screenshot"],
     };
 
     const result = await ridBridge.runBinding(draft);
@@ -169,6 +173,7 @@ describe("RID Tauri bridge", () => {
           }),
           open_apps: [expect.objectContaining({ id: "codex" })],
           close_apps: [expect.objectContaining({ id: "screenshot" })],
+          force_close_app_ids: ["screenshot"],
         }),
       }),
     );
@@ -198,6 +203,7 @@ describe("RID Tauri bridge", () => {
       mainApp: mockApps[1],
       openApps: [mockApps[2]],
       closeApps: [mockApps[4]],
+      forceCloseAppIds: [],
     };
 
     const result = await ridBridge.launchBinding(draft);
@@ -209,6 +215,7 @@ describe("RID Tauri bridge", () => {
           main_app: expect.objectContaining({ id: "obsidian" }),
           open_apps: [expect.objectContaining({ id: "codex" })],
           close_apps: [expect.objectContaining({ id: "screenshot" })],
+          force_close_app_ids: [],
         }),
       }),
     );
@@ -232,6 +239,7 @@ describe("RID Tauri bridge", () => {
       mainApp: mockApps[1],
       openApps: [mockApps[2]],
       closeApps: [mockApps[4]],
+      forceCloseAppIds: [],
     };
 
     await expect(ridBridge.selectShortcutDirectory()).resolves.toBe(

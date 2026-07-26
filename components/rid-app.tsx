@@ -31,6 +31,7 @@ const createEmptyDraft = (): BindingDraft => ({
   mainApp: null,
   openApps: [],
   closeApps: [],
+  forceCloseAppIds: [],
 });
 
 function AppRow({
@@ -39,12 +40,16 @@ function AppRow({
   tone = "green",
   onRemove,
   removeLabel,
+  forceClose,
+  onToggleForceClose,
 }: {
   app: AppInfo;
   status: string;
   tone?: "green" | "blue";
   onRemove: () => void;
   removeLabel: string;
+  forceClose?: boolean;
+  onToggleForceClose?: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
@@ -67,6 +72,23 @@ function AppRow({
         </button>
         {menuOpen && (
           <div className="row-menu__popover">
+            {onToggleForceClose && (
+              <button
+                className="force-close-option"
+                type="button"
+                aria-pressed={forceClose}
+                onClick={() => {
+                  onToggleForceClose();
+                  setMenuOpen(false);
+                }}
+              >
+                <span>{forceClose ? "✓" : ""}</span>
+                <span>
+                  关闭失败时强制结束
+                  <small>可能导致未保存内容丢失</small>
+                </span>
+              </button>
+            )}
             <button type="button" onClick={onRemove}>
               {removeLabel}
             </button>
@@ -200,7 +222,10 @@ function ResultDialog({
               ) : (
                 <CheckCircle weight="fill" aria-hidden />
               )}
-              {step.appName} · {step.action}
+              <span>
+                {step.appName} · {step.action}
+                {step.message && <small>{step.message}</small>}
+              </span>
             </span>
           ))}
         </div>
@@ -267,6 +292,7 @@ export function RidApp() {
       mainApp: binding.mainApp,
       openApps: [...binding.openApps],
       closeApps: [...binding.closeApps],
+      forceCloseAppIds: [...binding.forceCloseAppIds],
     });
     setSavedBinding(null);
     setShortcutPath(null);
@@ -275,8 +301,24 @@ export function RidApp() {
   function removeApp(group: PickerGroup, appId: string) {
     setDraft((current) => {
       if (group === "mainApp") return { ...current, mainApp: null };
-      return { ...current, [group]: current[group].filter((app) => app.id !== appId) };
+      return {
+        ...current,
+        [group]: current[group].filter((app) => app.id !== appId),
+        forceCloseAppIds:
+          group === "closeApps"
+            ? current.forceCloseAppIds.filter((id) => id !== appId)
+            : current.forceCloseAppIds,
+      };
     });
+  }
+
+  function toggleForceClose(appId: string) {
+    setDraft((current) => ({
+      ...current,
+      forceCloseAppIds: current.forceCloseAppIds.includes(appId)
+        ? current.forceCloseAppIds.filter((id) => id !== appId)
+        : [...current.forceCloseAppIds, appId],
+    }));
   }
 
   function addApp(app: AppInfo) {
@@ -296,6 +338,10 @@ export function RidApp() {
         ...current,
         [pickerGroup]: [...current[pickerGroup], app],
         [otherGroup]: current[otherGroup].filter((item) => item.id !== app.id),
+        forceCloseAppIds:
+          pickerGroup === "openApps"
+            ? current.forceCloseAppIds.filter((id) => id !== app.id)
+            : current.forceCloseAppIds,
       };
     });
     setPickerGroup(null);
@@ -510,12 +556,14 @@ export function RidApp() {
                 status="将临时关闭"
                 onEmptyClick={() => setPickerGroup("closeApps")}
                 onRemove={(id) => removeApp("closeApps", id)}
+                forceCloseAppIds={draft.forceCloseAppIds}
+                onToggleForceClose={toggleForceClose}
               />
             </RuleSection>
 
             <div className="recovery-note">
               <ShieldCheck weight="duotone" aria-hidden />
-              <p>RID 默认只请求应用正常退出，不会强制结束进程或关闭本次自动打开的应用。</p>
+              <p>RID 默认只请求应用正常退出；仅在你为单个应用明确开启时，关闭失败后才会强制结束。</p>
             </div>
           </div>
 
@@ -655,6 +703,8 @@ function AppList({
   tone = "green",
   onEmptyClick,
   onRemove,
+  forceCloseAppIds = [],
+  onToggleForceClose,
 }: {
   apps: AppInfo[];
   emptyLabel: string;
@@ -662,6 +712,8 @@ function AppList({
   tone?: "green" | "blue";
   onEmptyClick: () => void;
   onRemove: (id: string) => void;
+  forceCloseAppIds?: string[];
+  onToggleForceClose?: (id: string) => void;
 }) {
   if (apps.length === 0) {
     return (
@@ -680,6 +732,10 @@ function AppList({
           tone={tone}
           onRemove={() => onRemove(app.id)}
           removeLabel="从 Bind Apps 中移除"
+          forceClose={forceCloseAppIds.includes(app.id)}
+          onToggleForceClose={
+            onToggleForceClose ? () => onToggleForceClose(app.id) : undefined
+          }
         />
       ))}
     </div>

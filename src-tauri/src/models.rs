@@ -27,6 +27,8 @@ pub struct Binding {
     pub open_apps: Vec<AppDescriptor>,
     #[serde(default)]
     pub close_apps: Vec<AppDescriptor>,
+    #[serde(default)]
+    pub force_close_app_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

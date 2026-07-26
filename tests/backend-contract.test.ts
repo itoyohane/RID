@@ -9,6 +9,7 @@ const commandsSource = read("src-tauri/src/commands.rs");
 const handlerSource = read("src-tauri/src/lib.rs");
 const modelsSource = read("src-tauri/src/models.rs");
 const platformSource = read("src-tauri/src/platform.rs");
+const runtimeSource = read("src-tauri/src/runtime.rs");
 const shortcutSource = read("src-tauri/src/shortcut.rs");
 const iconSource = read("src-tauri/src/icon.rs");
 const bridgeSource = read("lib/tauri.ts");
@@ -67,6 +68,9 @@ describe("Tauri 后端命令契约", () => {
     expect(modelsSource).toMatch(/pub struct Binding\s*\{[\s\S]*?\bmain_app:\s*AppDescriptor/);
     expect(modelsSource).toMatch(/pub struct Binding\s*\{[\s\S]*?\bopen_apps:\s*Vec<AppDescriptor>/);
     expect(modelsSource).toMatch(/pub struct Binding\s*\{[\s\S]*?\bclose_apps:\s*Vec<AppDescriptor>/);
+    expect(modelsSource).toMatch(
+      /pub struct Binding\s*\{[\s\S]*?\bforce_close_app_ids:\s*Vec<String>/,
+    );
   });
 
   it("应用 DTO 保留快捷方式参数、工作目录和本地图标", () => {
@@ -86,6 +90,16 @@ describe("Tauri 后端命令契约", () => {
     expect(modelsSource).toMatch(
       /pub struct ExecutionReport\s*\{[\s\S]*?\brecovery_pending:\s*bool/,
     );
+  });
+
+  it("Windows 启动、托盘关闭和失败反馈使用安全的分层机制", () => {
+    expect(runtimeSource).toContain("ShellExecuteExW");
+    expect(runtimeSource).toContain("SEE_MASK_NOCLOSEPROCESS");
+    expect(runtimeSource).toContain("WM_CLOSE");
+    expect(runtimeSource).toContain("force_close");
+    expect(runtimeSource).toContain("PROCESS_TERMINATE");
+    expect(handlerSource).toContain("execution_failure_summary");
+    expect(commandsSource).toContain("write_execution_report");
   });
 
   it.each(commandNames)("前端 bridge 与后端命令 %s 保持同名", (name) => {

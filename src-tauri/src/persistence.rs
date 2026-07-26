@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::models::Binding;
+use crate::models::{Binding, ExecutionReport};
 
 const STORE_FILE: &str = "bindings.json";
 
@@ -56,6 +56,24 @@ pub fn remove_binding(app_data_dir: &Path, id: &str) -> Result<(), String> {
     write_bindings(app_data_dir, &bindings)
 }
 
+pub fn write_execution_report(
+    app_data_dir: &Path,
+    report: &ExecutionReport,
+) -> Result<PathBuf, String> {
+    let log_dir = app_data_dir.join("logs");
+    fs::create_dir_all(&log_dir).map_err(|error| format!("无法创建执行日志目录：{error}"))?;
+    let target = log_dir.join(format!("{}.json", report.execution_id));
+    let temporary = log_dir.join(format!("{}.json.tmp", report.execution_id));
+    let bytes = serde_json::to_vec_pretty(report)
+        .map_err(|error| format!("无法序列化执行日志：{error}"))?;
+    fs::write(&temporary, bytes).map_err(|error| format!("无法写入执行日志：{error}"))?;
+    if target.exists() {
+        fs::remove_file(&target).map_err(|error| format!("无法更新执行日志：{error}"))?;
+    }
+    fs::rename(&temporary, &target).map_err(|error| format!("无法提交执行日志：{error}"))?;
+    Ok(target)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -85,6 +103,7 @@ mod tests {
             main_app: app("main", &executable),
             open_apps: Vec::new(),
             close_apps: Vec::new(),
+            force_close_app_ids: Vec::new(),
         };
 
         upsert_binding(dir.path(), binding.clone()).unwrap();
@@ -106,11 +125,35 @@ mod tests {
             main_app: app("main", &executable),
             open_apps: Vec::new(),
             close_apps: Vec::new(),
+            force_close_app_ids: Vec::new(),
         };
         upsert_binding(dir.path(), binding).unwrap();
 
         remove_binding(dir.path(), "one").unwrap();
         assert!(load_bindings(dir.path()).unwrap().is_empty());
         assert!(remove_binding(dir.path(), "missing").is_err());
+    }
+
+    #[test]
+    fn writes_and_updates_execution_logs() {
+        use crate::models::ExecutionMode;
+
+        let dir = tempfile::tempdir().unwrap();
+        let mut report = ExecutionReport {
+            execution_id: "execution-test".into(),
+            binding_id: Some("binding-test".into()),
+            mode: ExecutionMode::Launch,
+            started_at: "2026-07-26T00:00:00Z".into(),
+            operations: Vec::new(),
+            recovery_pending: true,
+        };
+        let path = write_execution_report(dir.path(), &report).unwrap();
+        assert!(path.is_file());
+
+        report.recovery_pending = false;
+        write_execution_report(dir.path(), &report).unwrap();
+        let saved: ExecutionReport =
+            serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap();
+        assert!(!saved.recovery_pending);
     }
 }
