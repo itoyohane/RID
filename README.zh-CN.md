@@ -33,6 +33,23 @@ RID 当前支持 64 位 Windows 10 和 Windows 11。
 
 卸载 RID：打开 Windows“设置”→“应用”→“已安装的应用”，找到 **RID** 并选择卸载。
 
+### 静默安装
+
+NSIS 安装程序支持当前用户范围的无人值守安装。`/S` 必须使用大写：
+
+```powershell
+Start-Process -Wait .\RID_0.1.1_x64-setup.exe -ArgumentList "/S"
+```
+
+使用 MSI 统一部署：
+
+```powershell
+msiexec.exe /i .\RID_0.1.1_x64_en-US.msi /quiet /norestart
+```
+
+自动发布流程会生成 SHA-256 校验文件和 GitHub 构建来源证明。验证方法和代码签名接入说明见
+[Windows 发布安全说明](docs/windows-release.md)。
+
 ## 使用方法
 
 1. 点击侧栏中的“新增应用”。

@@ -29,6 +29,26 @@ The `RID_0.1.1_x64_en-US.msi` package is also available for managed or enterpris
 
 To uninstall RID, open **Windows Settings → Apps → Installed apps**, find **RID**, and select **Uninstall**.
 
+### Silent installation
+
+The NSIS installer supports an unattended current-user installation. The `/S`
+flag is case-sensitive:
+
+```powershell
+Start-Process -Wait .\RID_0.1.1_x64-setup.exe -ArgumentList "/S"
+```
+
+For managed MSI deployment:
+
+```powershell
+msiexec.exe /i .\RID_0.1.1_x64_en-US.msi /quiet /norestart
+```
+
+The automated release workflow produces SHA-256 checksums and GitHub
+build-provenance attestations. See
+[Windows release security](docs/windows-release.md) for verification and
+code-signing details.
+
 ## Usage
 
 1. Click **New App (新增应用)** in the sidebar.

@@ -1,0 +1,138 @@
+name: Windows release
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/windows-release.yml"
+      - "app/**"
+      - "components/**"
+      - "lib/**"
+      - "public/**"
+      - "scripts/**"
+      - "src-tauri/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.mjs"
+      - "tsconfig.json"
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build-and-verify:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Rust
+        shell: pwsh
+        run: |
+          rustup update stable
+          rustup default stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run checks
+        run: npm run check
+
+      - name: Verify release tag version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $tagVersion = $env:GITHUB_REF_NAME.TrimStart("v")
+          $appVersion = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          if ($tagVersion -ne $appVersion) {
+            throw "Tag version $tagVersion does not match app version $appVersion."
+          }
+
+      - name: Build Windows bundles
+        run: npm run tauri:build
+
+      - name: Verify bundle metadata and checksums
+        run: npm run release:verify
+
+      - name: Smoke-test silent NSIS install and uninstall
+        shell: pwsh
+        run: |
+          $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $installer = (Resolve-Path "src-tauri/target/release/bundle/nsis/RID_${version}_x64-setup.exe").Path
+          $installDirectory = Join-Path $env:RUNNER_TEMP "RIDSilentInstall"
+
+          $install = Start-Process -FilePath $installer `
+            -ArgumentList @("/S", "/D=$installDirectory") `
+            -Wait -PassThru
+          if ($install.ExitCode -ne 0) {
+            throw "Silent installer exited with code $($install.ExitCode)."
+          }
+          if (-not (Test-Path (Join-Path $installDirectory "rid.exe"))) {
+            throw "Silent installer did not create rid.exe."
+          }
+
+          $uninstaller = Join-Path $installDirectory "uninstall.exe"
+          $uninstall = Start-Process -FilePath $uninstaller `
+            -ArgumentList @("/S", "_?=$installDirectory") `
+            -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) {
+            throw "Silent uninstaller exited with code $($uninstall.ExitCode)."
+          }
+          if (Test-Path (Join-Path $installDirectory "rid.exe")) {
+            throw "Silent uninstaller did not remove rid.exe."
+          }
+
+      - name: Upload verified Windows bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: RID-Windows-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            src-tauri/target/release/rid.exe
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/SHA256SUMS.txt
+
+      - name: Attest release provenance
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            src-tauri/target/release/rid.exe
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/msi/*.msi
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $assets = @(
+            "src-tauri/target/release/rid.exe",
+            "src-tauri/target/release/bundle/nsis/RID_${version}_x64-setup.exe",
+            "src-tauri/target/release/bundle/msi/RID_${version}_x64_en-US.msi",
+            "src-tauri/target/release/bundle/SHA256SUMS.txt"
+          )
+
+          if (gh release view $env:GITHUB_REF_NAME 2>$null) {
+            gh release upload $env:GITHUB_REF_NAME @assets --clobber
+          } else {
+            gh release create $env:GITHUB_REF_NAME @assets `
+              --verify-tag `
+              --title "RID $env:GITHUB_REF_NAME" `
+              --generate-notes
+          }

@@ -29,10 +29,22 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "itoyohane",
+    "homepage": "https://github.com/itoyohane/RID",
+    "copyright": "Copyright © 2026 itoyohane",
     "icon": [
       "icons/icon.ico"
     ],
     "category": "Utility",
-    "shortDescription": "Launch, close, and restore Windows apps with smart shortcuts."
+    "shortDescription": "Launch, close, and restore Windows apps with smart shortcuts.",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "English",
+          "SimpChinese"
+        ]
+      }
+    }
   }
 }
