@@ -88,6 +88,35 @@ describe("RID 新增选项页", () => {
     expect(document.documentElement).toHaveAttribute("lang", "en");
   });
 
+  it("桌面端拦截 Ctrl+R、Ctrl+Shift+R 和 F5 刷新", async () => {
+    bridge.isNative.mockReturnValue(true);
+    render(<RidApp />);
+    await screen.findByText("选择主应用");
+
+    const shortcuts = [
+      new KeyboardEvent("keydown", {
+        key: "r",
+        ctrlKey: true,
+        cancelable: true,
+      }),
+      new KeyboardEvent("keydown", {
+        key: "R",
+        ctrlKey: true,
+        shiftKey: true,
+        cancelable: true,
+      }),
+      new KeyboardEvent("keydown", {
+        key: "F5",
+        cancelable: true,
+      }),
+    ];
+
+    for (const shortcut of shortcuts) {
+      expect(window.dispatchEvent(shortcut)).toBe(false);
+      expect(shortcut.defaultPrevented).toBe(true);
+    }
+  });
+
   it("默认进入新增页，且侧栏 Logo 下首项为新增应用", async () => {
     render(<RidApp />);
 

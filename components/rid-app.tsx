@@ -483,6 +483,24 @@ export function RidApp() {
   }, [locale]);
 
   useEffect(() => {
+    if (!ridBridge.isNative()) return;
+
+    function blockDesktopRefresh(event: KeyboardEvent) {
+      const isRefreshShortcut =
+        event.key === "F5" ||
+        (event.ctrlKey && event.key.toLowerCase() === "r");
+      if (!isRefreshShortcut) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    window.addEventListener("keydown", blockDesktopRefresh, true);
+    return () =>
+      window.removeEventListener("keydown", blockDesktopRefresh, true);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     Promise.all([ridBridge.listApps(), ridBridge.listBindings()])
       .then(([nextApps, nextBindings]) => {
