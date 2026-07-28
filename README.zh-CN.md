@@ -18,6 +18,10 @@ RID 是一款 Windows 桌面工具。你可以围绕一个“主应用”创建�
 
 ![RID 新增选项页面](docs/assets/rid-overview.png)
 
+## 演示视频
+
+[▶ 播放 RID 中文演示](docs/assets/rid-demo-zh.mp4?raw=1)
+
 ## 下载与安装
 
 RID 当前支持 64 位 Windows 10 和 Windows 11。

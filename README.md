@@ -14,6 +14,10 @@ For example, RID can start a voice chat tool and close screenshot software with 
 
 ![RID new binding screen](docs/assets/rid-overview.png)
 
+## Demo
+
+[▶ Watch the English RID demo](docs/assets/rid-demo-en.mp4?raw=1)
+
 ## Download
 
 RID supports 64-bit Windows 10 and Windows 11.
