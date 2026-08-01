@@ -81,8 +81,13 @@ fn new_report(binding: &Binding, mode: ExecutionMode) -> ExecutionReport {
 }
 
 #[tauri::command]
-pub fn list_installed_apps() -> Result<Vec<AppDescriptor>, String> {
-    Ok(platform::list_installed_apps())
+pub async fn list_installed_apps() -> Result<Vec<AppDescriptor>, String> {
+    // Discovering Start Menu shortcuts and their icons can take several seconds on
+    // machines with a large application catalog.  Keep that filesystem/COM work off
+    // Tauri's command-dispatch thread so the window can paint and receive input.
+    tauri::async_runtime::spawn_blocking(platform::list_installed_apps)
+        .await
+        .map_err(|error| format!("应用扫描任务意外结束：{error}"))
 }
 
 #[tauri::command]

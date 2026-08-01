@@ -502,10 +502,11 @@ export function RidApp() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([ridBridge.listApps(), ridBridge.listBindings()])
-      .then(([nextApps, nextBindings]) => {
+    // Saved bindings are a tiny local file. Load them independently so the main
+    // workspace becomes usable while Windows application discovery is still running.
+    ridBridge.listBindings()
+      .then((nextBindings) => {
         if (cancelled) return;
-        setApps(nextApps);
         setBindings(nextBindings);
       })
       .catch((error: unknown) => {
@@ -517,6 +518,34 @@ export function RidApp() {
                 getLocaleSnapshot(),
                 "载入失败",
                 "Failed to load application data",
+              ),
+            ),
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    ridBridge.listApps()
+      .then((nextApps) => {
+        if (!cancelled) setApps(nextApps);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          showToast(
+            errorMessage(
+              error,
+              translate(
+                getLocaleSnapshot(),
+                "加载应用列表失败",
+                "Failed to load the application list",
               ),
             ),
           );

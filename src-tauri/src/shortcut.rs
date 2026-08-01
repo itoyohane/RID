@@ -393,7 +393,10 @@ pub fn find_binding_shortcut(binding_id: &str, rid_executable: &Path) -> Option<
     matched
 }
 
-fn shortcut_file_name(name: &str) -> String {
+fn shortcut_file_name(directory: &Path, name: &str) -> String {
+    use std::os::windows::ffi::OsStrExt;
+
+    const SUFFIX: &str = " · RID.lnk";
     let sanitized = name
         .chars()
         .map(|character| {
@@ -410,7 +413,27 @@ fn shortcut_file_name(name: &str) -> String {
     } else {
         sanitized
     };
-    format!("{name} · RID.lnk")
+    // Shell links still encounter MAX_PATH-limited APIs on some Windows systems.
+    // Keep the complete destination safely below that limit without splitting a
+    // UTF-16 code unit or changing normal-length names.
+    let directory_units = directory.as_os_str().encode_wide().count();
+    let file_name_budget = 259_usize.saturating_sub(directory_units + 1).min(240);
+    let name_budget = file_name_budget
+        .saturating_sub(SUFFIX.encode_utf16().count())
+        .max(1);
+    let mut used_units = 0;
+    let shortened = name
+        .chars()
+        .take_while(|character| {
+            let character_units = character.len_utf16();
+            if used_units + character_units > name_budget {
+                return false;
+            }
+            used_units += character_units;
+            true
+        })
+        .collect::<String>();
+    format!("{shortened}{SUFFIX}")
 }
 
 unsafe fn write_shortcut(
@@ -444,6 +467,39 @@ unsafe fn write_shortcut(
     persist.Save(PCWSTR(destination.as_ptr()), BOOL(1))
 }
 
+fn write_shortcut_in_com_worker(
+    shortcut_path: PathBuf,
+    rid_executable: PathBuf,
+    binding_id: String,
+    display_name: String,
+    icon_source: PathBuf,
+) -> Result<(), String> {
+    thread::spawn(move || {
+        // Tauri command handlers can run in an apartment initialized by WebView.
+        // Create links in a fresh STA instead of relying on that apartment's mode.
+        let com_result = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+        if !com_result.is_ok() {
+            return Err(format!(
+                "无法初始化创建快捷方式所需的 Windows 组件：{com_result}"
+            ));
+        }
+        let result = unsafe {
+            write_shortcut(
+                &shortcut_path,
+                &rid_executable,
+                &binding_id,
+                &display_name,
+                &icon_source,
+            )
+        }
+        .map_err(|error| format!("{error}"));
+        unsafe { CoUninitialize() };
+        result
+    })
+    .join()
+    .map_err(|_| "创建快捷方式的 Windows 组件意外退出".to_string())?
+}
+
 pub fn create_binding_shortcut(
     directory: &Path,
     display_name: &str,
@@ -457,22 +513,15 @@ pub fn create_binding_shortcut(
     if !rid_executable.is_file() {
         return Err("找不到 RID 可执行文件，请重新安装 RID".into());
     }
-    let shortcut_path = directory.join(shortcut_file_name(display_name));
-    let com_result = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
-    let initialized_here = com_result.is_ok();
-    let result = unsafe {
-        write_shortcut(
-            &shortcut_path,
-            rid_executable,
-            binding_id,
-            display_name,
-            icon_source,
-        )
-    }
+    let shortcut_path = directory.join(shortcut_file_name(directory, display_name));
+    let result = write_shortcut_in_com_worker(
+        shortcut_path.clone(),
+        rid_executable.to_path_buf(),
+        binding_id.to_string(),
+        display_name.to_string(),
+        icon_source.to_path_buf(),
+    )
     .map_err(|error| format!("无法创建快捷方式：{error}"));
-    if initialized_here {
-        unsafe { CoUninitialize() };
-    }
     result.map(|_| shortcut_path)
 }
 
@@ -497,21 +546,14 @@ pub fn replace_binding_shortcut(
         return Err("找不到 RID 可执行文件，请重新安装 RID".into());
     }
 
-    let com_result = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
-    let initialized_here = com_result.is_ok();
-    let result = unsafe {
-        write_shortcut(
-            shortcut_path,
-            rid_executable,
-            binding_id,
-            display_name,
-            icon_source,
-        )
-    }
+    let result = write_shortcut_in_com_worker(
+        shortcut_path.to_path_buf(),
+        rid_executable.to_path_buf(),
+        binding_id.to_string(),
+        display_name.to_string(),
+        icon_source.to_path_buf(),
+    )
     .map_err(|error| format!("无法更新原快捷方式：{error}"));
-    if initialized_here {
-        unsafe { CoUninitialize() };
-    }
     result.map(|_| shortcut_path.to_path_buf())
 }
 

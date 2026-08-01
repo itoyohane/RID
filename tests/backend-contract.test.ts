@@ -25,7 +25,7 @@ const commandNames = [
 ] as const;
 
 function commandDeclaration(name: string) {
-  const start = commandsSource.indexOf(`pub fn ${name}`);
+  const start = commandsSource.search(new RegExp(`pub (?:async )?fn ${name}\\b`));
   if (start < 0) return "";
   const next = commandsSource.indexOf("#[tauri::command]", start);
   return commandsSource.slice(start, next < 0 ? undefined : next);
@@ -34,7 +34,7 @@ function commandDeclaration(name: string) {
 describe("Tauri 后端命令契约", () => {
   it.each(commandNames)("%s 是已注册的 Tauri command", (name) => {
     expect(commandsSource).toMatch(
-      new RegExp(`#\\[tauri::command\\]\\s*pub fn ${name}\\s*\\(`),
+      new RegExp(`#\\[tauri::command\\]\\s*pub (?:async )?fn ${name}\\s*\\(`),
     );
     expect(handlerSource).toContain(`commands::${name}`);
   });
